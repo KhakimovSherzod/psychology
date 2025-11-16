@@ -1,0 +1,37 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                    Int       @id @default(autoincrement()) // internal numeric ID
+  uuid                  String    @unique @default(uuid())      // public/external ID
+  name                  String
+  role                  Role      @default(USER)               // enum for role
+  phone                 String    @unique
+  pin                   String
+  verified              Boolean   @default(false)              // true if verified
+  subscriptionType      SubscriptionType @default(FREE)       
+  subscriptionValidTill DateTime?                               // nullable if free plan
+  profileImage          String?                                 // optional profile image URL
+  deviceId              String[]  
+  createdAt             DateTime  @default(now())
+  lastLogin             DateTime?                              
+}
+
+// Roles
+enum Role {
+  USER
+  ADMIN
+  OWNER
+}
+
+// Subscription types
+enum SubscriptionType {
+  FREE
+  PREMIUM
+}
