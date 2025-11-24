@@ -4,13 +4,20 @@ import type { IUserRepository } from '../../domain/repositories/user.repository'
 export class LoginUserService {
   constructor(private userRepository: IUserRepository) {}
 
-  async execute(phone: string, pin: string) {
-    const user = await this.userRepository.findByPhone(phone)
-    if (!user) throw new Error('Invalid credentials')
+  async login(deviceId: string,  pin: string, phone?: string) {
+    const user = await this.userRepository.findByPhoneOrDeviceId(phone, deviceId)
 
-    const valid = await bcrypt.compare(pin, user.pin)
-    if (!valid) throw new Error('Invalid credentials')
+    if (!user) {
+      throw new Error('Foydalanuvchi topilmadi')
+    }
+    // 🔥 FIX — compare plaintext PIN with stored hash
+    const isPinValid = await bcrypt.compare(pin, user.pin)
+    if (!isPinValid) {
+      throw new Error("Noto'gri pin")
+    }
+    await this.userRepository.updateLastLogin(user.phone)
 
+    await this.userRepository.updateDeviceId(user.phone, deviceId)
     return user
   }
 }

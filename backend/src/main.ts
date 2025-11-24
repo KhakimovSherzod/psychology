@@ -1,18 +1,19 @@
 // src/main.ts
 import { PrismaClient } from '@prisma/client'
+import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import express, { type NextFunction, type Request, type Response } from 'express'
-import { userRoutes } from './infrastructure/http/routes'
-import cookieParser from 'cookie-parser'
+import { authMiddleware } from './infrastructure/http/middlewares/auth.middleware'
+import { publicAuthRoutes } from './infrastructure/http/routes/public.routes'
+import { protectedRoutes } from './infrastructure/http/routes/user.route'
 
 const app = express()
 const port = process.env.PORT || 3001
 
-// CORS configuration
 const corsOptions = {
   origin: 'http://localhost:3000',
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 }
 
@@ -23,15 +24,16 @@ app.use(cors(corsOptions))
 app.use(express.json())
 app.use(cookieParser())
 
-// Routes
-app.use('/api/users', userRoutes)
+app.use('/public/', publicAuthRoutes)
 
-// Health check endpoint
-app.get('/health', (res: Response) => {
-  res.json({ status: 'OK', message: 'Server is running' })
+app.use(authMiddleware)
+
+app.use('/api/users', protectedRoutes)
+
+app.get('/health', (req: Request, res: Response) => {
+  res.status(200).json({ status: 'OK', message: 'Server is running' })
 })
 
-// Global error handler
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error(err.stack)
   res.status(500).json({ error: err.message })

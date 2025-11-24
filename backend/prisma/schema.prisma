@@ -1,6 +1,5 @@
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 generator client {
@@ -14,10 +13,8 @@ model User {
   role                  Role      @default(USER)               // enum for role
   phone                 String    @unique
   pin                   String
-  verified              Boolean   @default(false)              // true if verified
-  subscriptionType      SubscriptionType @default(FREE)       
-  subscriptionValidTill DateTime?                               // nullable if free plan
-  profileImage          String?                                 // optional profile image URL
+// nullable if free plan
+  profileImage          String?                                
   deviceId              String[]  
   createdAt             DateTime  @default(now())
   lastLogin             DateTime?                              
@@ -30,8 +27,3 @@ enum Role {
   OWNER
 }
 
-// Subscription types
-enum SubscriptionType {
-  FREE
-  PREMIUM
-}

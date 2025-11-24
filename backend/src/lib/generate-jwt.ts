@@ -49,4 +49,3 @@ export async function generateRefreshToken({ uuid, res }: { uuid: string; res: R
 
   return refreshToken
 }
-

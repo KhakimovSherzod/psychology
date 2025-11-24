@@ -20,7 +20,6 @@ export class RegisterUserService {
       data.name, // name
       data.phone, // phone
       hashedPin, // hashed pin
-      true, // verified
       [data.deviceId] // deviceId array
     )
     const createdUser = await this.userRepository.create(user)

@@ -18,8 +18,10 @@
         "name": "next"
       }
     ],
+    "typeRoots": ["./node_modules/@types", "./types"],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./src/*"],
+      "@/types/*": ["./src/types/*"]
     }
   },
   "include": [
@@ -27,8 +29,8 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts",
-    "**/*.mts"
+    "next.config.js",
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": ["node_modules"]
 }
