@@ -10,12 +10,15 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
   const accessToken = req.cookies['access_token']
   const refreshToken = req.cookies['refresh_token']
 
+  if (req.path === '/public/login' || req.path === 'http://localhost:3001/public/register') {
+    return next()
+  }
   console.log('access token', accessToken)
   console.log('refresh token', refreshToken)
-  // --------------------------------------------------------
-  // 1. CHECK ACCESS TOKEN
-  // --------------------------------------------------------
   if (accessToken) {
+    // --------------------------------------------------------
+    // 1. CHECK ACCESS TOKEN
+    // --------------------------------------------------------
     const decodedAccess = await verifyAccessToken(accessToken)
 
     if (decodedAccess) {

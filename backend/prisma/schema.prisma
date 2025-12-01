@@ -1,29 +1,77 @@
-datasource db {
-  provider = "postgresql"
-}
-
 generator client {
   provider = "prisma-client-js"
 }
 
-model User {
-  id                    Int       @id @default(autoincrement()) // internal numeric ID
-  uuid                  String    @unique @default(uuid())      // public/external ID
-  name                  String
-  role                  Role      @default(USER)               // enum for role
-  phone                 String    @unique
-  pin                   String
-// nullable if free plan
-  profileImage          String?                                
-  deviceId              String[]  
-  createdAt             DateTime  @default(now())
-  lastLogin             DateTime?                              
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
-// Roles
+model User {
+  id           Int       @id @default(autoincrement())
+  name         String
+  phone        String    @unique
+  pin          String
+  uuid         String    @unique @default(uuid())
+  createdAt    DateTime  @default(now())
+  lastLogin    DateTime?
+  profileImage String?
+  role         Role      @default(USER)
+  deviceId     String[]
+}
+
+model CourseCategory {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  description String
+  createdAt DateTime @default(now())
+  courses   Course[]
+}
+
+model Course {
+  id           String         @id @default(uuid())
+  title        String
+  description  String
+  subtitles    String
+  videoUrl     String
+  thumbnailUrl String
+  categoryId   String
+  category     CourseCategory @relation(fields: [categoryId], references: [id])
+  status       Status
+  level        Level
+  price        Float
+  createdAt    DateTime  @default(now())
+  publishedAt  DateTime?
+  updatedAt    DateTime  @updatedAt
+  playlistId   String?
+  order        Int?
+  playlist     Playlist? @relation(fields: [playlistId], references: [id])
+}
+
+model Playlist {
+  id                   String   @id @default(uuid())
+  title                String
+  description          String
+  playlistThumbnailUrl String
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  courses              Course[]
+}
+
 enum Role {
   USER
   ADMIN
   OWNER
 }
 
+enum Level {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum Status {
+  DRAFT
+  UNLISTED
+  PUBLISHED
+}

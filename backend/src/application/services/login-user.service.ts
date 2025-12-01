@@ -4,8 +4,8 @@ import type { IUserRepository } from '../../domain/repositories/user.repository'
 export class LoginUserService {
   constructor(private userRepository: IUserRepository) {}
 
-  async login(deviceId: string,  pin: string, phone?: string) {
-    const user = await this.userRepository.findByPhoneOrDeviceId(phone, deviceId)
+  async login(deviceId: string, pin: string, phone?: string) {
+    const user = await this.userRepository.findByPhoneOrDeviceId(deviceId, phone)
 
     if (!user) {
       throw new Error('Foydalanuvchi topilmadi')

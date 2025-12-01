@@ -16,7 +16,7 @@ export interface IUserRepository {
 
   verifyPin(uuid: string, pin: string): Promise<boolean>
   changePin(uuid: string, newPin: string): Promise<{ status: number; message: string }>
-  findByPhoneOrDeviceId(phone?: string, deviceId?: string): Promise<User | null>
+  findByPhoneOrDeviceId(deviceId: string, phone?: string): Promise<User | null>
   updateDeviceId(phone: string, deviceId: string): Promise<User | null>
   updateLastLogin(phone: string): Promise<void>
 }

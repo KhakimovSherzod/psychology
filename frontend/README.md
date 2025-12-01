@@ -1,36 +1,40 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+video should be loaded
+as public and protected for that bun
+ny get request differently
 
-## Getting Started
+first i should make request to bunny server for free
+second i should make request for protected routes
 
-First, run the development server:
+for that i should understand how bunny server works and how can i make free and protected requests
+so than how i understood user send jwt token based on protected route so i think
+i should configure somehow working with my jwt and if user paid i should include in credentials of that protected url
+watching paid urls
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+i should consider how can i make that
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Frontend requests video URL -> Backend generates signed URL -> Backend returns signed URL -> Frontend player streams video
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+async getProtectedVideoUrl(videoId: string): Promise<string> {
+const apiKey = process.env.BUNNY_API_KEY
+const libraryId = process.env.BUNNY_LIBRARY_ID
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+// Example Bunny API request to generate a signed URL
+const response = await axios.post(
+`https://video.bunnycdn.com/library/${libraryId}/videos/${videoId}/access`,
+{},
+{ headers: { AccessKey: apiKey } }
+)
 
-## Learn More
+return response.data.signedUrl // Time-limited playable URL
+}
 
-To learn more about Next.js, take a look at the following resources:
+# frontend usage
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+// Fetch signed URL from backend
+const { signedUrl } = await fetch(`/api/courses/video/${videoId}/signed-url`).then(r => r.json())
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+// Use in player
 
-## Deploy on Vercel
+<iframe src={signedUrl} width="640" height="360" allowfullscreen></iframe>
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+so i think i should make logic like user make request to backend with jwt, if user paid i will return signed url and user can play it 

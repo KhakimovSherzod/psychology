@@ -164,11 +164,11 @@ export default function PsychologyDoctorPage() {
       gradient: 'bg-gradient-to-r from-purple-500 to-pink-500',
     },
     {
-      name: 'Bog\'lanish',
+      name: "Bog'lanish",
       href: 'tel:+998901234567',
       icon: '📞',
       color: 'from-green-500 to-emerald-600',
-      description: 'Qo\'ng\'iroq qilish',
+      description: "Qo'ng'iroq qilish",
       gradient: 'bg-gradient-to-r from-green-500 to-emerald-600',
     },
   ]
@@ -208,7 +208,7 @@ export default function PsychologyDoctorPage() {
   ]
 
   return (
-    <div className='min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-100/30 dark:from-slate-900 dark:via-blue-900/20 dark:to-indigo-900/20 relative overflow-hidden'>
+    <div className='min-h-screen bg-linear-to-br from-slate-50 via-blue-50/30 to-indigo-100/30 dark:from-slate-900 dark:via-blue-900/20 dark:to-indigo-900/20 relative overflow-hidden'>
       {/* Three.js Background Canvas */}
       <canvas
         ref={canvasRef}
@@ -216,7 +216,7 @@ export default function PsychologyDoctorPage() {
       />
 
       {/* Background Overlay */}
-      <div className='absolute inset-0 bg-gradient-to-br from-white/80 via-blue-50/50 to-purple-50/30 dark:from-slate-900/90 dark:via-blue-900/20 dark:to-purple-900/10 z-10' />
+      <div className='absolute inset-0 bg-linear-to-br from-white/80 via-blue-50/50 to-purple-50/30 dark:from-slate-900/90 dark:via-blue-900/20 dark:to-purple-900/10 z-10' />
 
       {/* Main Content */}
       <div className='relative z-20'>
@@ -243,7 +243,7 @@ export default function PsychologyDoctorPage() {
                 href='/contact'
                 className='text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors text-sm'
               >
-                Bog'lanish
+                Bog&apos;lanish
               </Link>
             </div>
           </div>
@@ -254,9 +254,9 @@ export default function PsychologyDoctorPage() {
           <div className='max-w-6xl mx-auto'>
             <div className='flex flex-col lg:flex-row items-center gap-8'>
               {/* Profile Image */}
-              <div className='flex-shrink-0 relative w-full max-w-xs mx-auto'>
+              <div className='shrink-0 relative w-full max-w-xs mx-auto'>
                 <div className='relative'>
-                  <div className='w-56 h-56 rounded-3xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 p-2 shadow-2xl mx-auto'>
+                  <div className='w-56 h-56 rounded-3xl bg-linear-to-br from-blue-500 via-purple-500 to-pink-500 p-2 shadow-2xl mx-auto'>
                     <div className='w-full h-full rounded-2xl bg-white dark:bg-slate-800 p-2'>
                       <Image
                         src='/main_image.png'
@@ -268,7 +268,6 @@ export default function PsychologyDoctorPage() {
                       />
                     </div>
                   </div>
-                  
                 </div>
               </div>
 
@@ -281,7 +280,7 @@ export default function PsychologyDoctorPage() {
 
                 <h1 className='text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-800 dark:text-white mb-4'>
                   Tadjibayeva{' '}
-                  <span className='text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600'>
+                  <span className='text-transparent bg-clip-text bg-linear-to-r from-blue-600 to-purple-600'>
                     Gulnoza
                   </span>
                 </h1>
@@ -291,9 +290,9 @@ export default function PsychologyDoctorPage() {
                 </p>
 
                 <p className='text-base text-slate-500 dark:text-slate-400 leading-relaxed max-w-2xl mb-6'>
-                  9 yillik tajribaga ega pedagogik psixolog sifatida bolalar, ota-onalar va oilalarga 
-                  psixologik yordam ko'rsataman. 4 farzand onasi sifatida bolalar psixologiyasini chuqur 
-                  tushunaman va har bir bemorga individual yondashaman.
+                  9 yillik tajribaga ega pedagogik psixolog sifatida bolalar, ota-onalar va
+                  oilalarga psixologik yordam ko&apos;rsataman. 4 farzand onasi sifatida bolalar
+                  psixologiyasini chuqur tushunaman va har bir bemorga individual yondashaman.
                 </p>
 
                 {/* Quick Stats */}
@@ -318,7 +317,7 @@ export default function PsychologyDoctorPage() {
         <section className='py-12 px-4'>
           <div className='max-w-4xl mx-auto'>
             <h2 className='text-2xl sm:text-3xl font-bold text-center text-slate-800 dark:text-white mb-4'>
-              Bog'laning
+              Bog&apos;laning
             </h2>
             <p className='text-base text-slate-500 dark:text-slate-400 text-center mb-8 max-w-2xl mx-auto'>
               Sessiyalarni bron qilish, konsultatsiyalar yoki savollar uchun
@@ -391,8 +390,8 @@ export default function PsychologyDoctorPage() {
             <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
               {services.map((service, index) => (
                 <div
-                  key={service.title}
-                  className='relative p-6 bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 hover:shadow-2xl transition-all duration-500 group'
+                  key={index}
+                  className='relative p-6 bg-linear-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 hover:shadow-2xl transition-all duration-500 group'
                 >
                   <div className='text-3xl mb-3 text-blue-600 dark:text-blue-400'>
                     {service.title.includes('Individual') && '👤'}
@@ -422,7 +421,7 @@ export default function PsychologyDoctorPage() {
         {/* CTA Section */}
         <section className='py-16 px-4'>
           <div className='max-w-4xl mx-auto text-center'>
-            <div className='bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white relative overflow-hidden'>
+            <div className='bg-linear-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white relative overflow-hidden'>
               {/* Background pattern */}
               <div className='absolute inset-0 opacity-10'>
                 <div className='absolute -top-16 -right-16 w-32 h-32 bg-white rounded-full'></div>
@@ -430,10 +429,11 @@ export default function PsychologyDoctorPage() {
               </div>
 
               <h2 className='text-2xl sm:text-3xl font-bold mb-4 relative z-10'>
-                Sog'lom Ruhiyat Sari Birinchi Qadam
+                Sog&apos;lom Ruhiyat Sari Birinchi Qadam
               </h2>
               <p className='text-blue-100 text-lg mb-6 max-w-2xl mx-auto relative z-10'>
-                Yaxshiroq ruhiy salomatlik yo'lidagi birinchi qadamni tashlang. Bugun maxfiy konsultatsiyani rejalashtiring.
+                Yaxshiroq ruhiy salomatlik yo&apos;lidagi birinchi qadamni tashlang. Bugun maxfiy
+                konsultatsiyani rejalashtiring.
               </p>
               <div className='flex flex-col sm:flex-row gap-3 justify-center relative z-10'>
                 <Link
@@ -446,7 +446,7 @@ export default function PsychologyDoctorPage() {
                   href='tel:+998901234567'
                   className='px-6 py-3 border-2 border-white text-white rounded-xl font-semibold hover:bg-white hover:text-blue-600 transition-all duration-300 transform hover:scale-105 text-sm'
                 >
-                  Qo'ng'iroq qilish
+                  Qo&apos;ng&apos;iroq qilish
                 </a>
               </div>
             </div>
@@ -462,7 +462,9 @@ export default function PsychologyDoctorPage() {
                   Psixolog<span className='text-blue-600'>Markaz</span>
                 </div>
                 <p className='text-sm'>Professional psixologik xizmatlar</p>
-                <p className='text-xs mt-1'>© 2024 Tadjibayeva Gulnoza. Barcha huquqlar himoyalangan.</p>
+                <p className='text-xs mt-1'>
+                  © 2024 Tadjibayeva Gulnoza. Barcha huquqlar himoyalangan.
+                </p>
               </div>
               <div className='flex flex-wrap gap-4 justify-center'>
                 {professionalLinks.map(link => (

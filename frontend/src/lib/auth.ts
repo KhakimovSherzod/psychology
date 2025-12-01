@@ -23,6 +23,7 @@ export const getCurrentUser = cache(async () => {
       },
       cache: 'no-store',
     })
+    console.log('Fetch user response status:', res)
 
     if (!res.ok) {
       throw new Error('Failed to fetch user data')

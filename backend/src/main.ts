@@ -3,9 +3,10 @@ import { PrismaClient } from '@prisma/client'
 import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import express, { type NextFunction, type Request, type Response } from 'express'
+import { publicAuthRoutes } from './infrastructure/http/routes/auth.routes'
+import { protectedCoursesRoutes } from './infrastructure/http/routes/course.route'
+import { protectedUserRoutes } from './infrastructure/http/routes/user.route'
 import { authMiddleware } from './infrastructure/http/middlewares/auth.middleware'
-import { publicAuthRoutes } from './infrastructure/http/routes/public.routes'
-import { protectedRoutes } from './infrastructure/http/routes/user.route'
 
 const app = express()
 const port = process.env.PORT || 3001
@@ -28,7 +29,8 @@ app.use('/public/', publicAuthRoutes)
 
 app.use(authMiddleware)
 
-app.use('/api/users', protectedRoutes)
+app.use('/api/users', protectedUserRoutes)
+app.use('/api/courses', protectedCoursesRoutes)
 
 app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'OK', message: 'Server is running' })

@@ -18,29 +18,18 @@ type DashboardClientLayoutProps = {
 export default function DashboardAdminLayout({ children, admin }: DashboardClientLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [activeNav, setActiveNav] = useState('/dashboard')
-
+  console.log('Admin data in layout:', admin)
   // Admin-specific navigation
-  const adminNavigation = [
-    { name: 'Boshqaruv paneli', href: '/dashboard', icon: '📊', role: 'admin' },
-    { name: 'Foydalanuvchilar', href: '/dashboard/users', icon: '👥', role: 'admin' },
-    { name: 'Kurslar', href: '/dashboard/courses', icon: '📚', role: 'admin' },
-    { name: 'To‘lovlar', href: '/dashboard/payments', icon: '💳', role: 'admin' },
-    { name: 'Statistika', href: '/dashboard/analytics', icon: '📈', role: 'admin' },
-    { name: 'Sozlamalar', href: '/dashboard/settings', icon: '⚙️', role: 'admin' },
-    { name: 'Xabarlar', href: '/dashboard/messages', icon: '💬', role: 'admin' },
-    { name: 'Moderatsiya', href: '/dashboard/moderation', icon: '🛡️', role: 'admin' },
+  const navigation = [
+    { name: 'Boshqaruv paneli', href: '/admin', icon: '📊', role: 'admin' },
+    { name: 'Foydalanuvchilar', href: '/admin/users', icon: '👥', role: 'admin' },
+    { name: 'Kurslar', href: '/admin/courses', icon: '📚', role: 'admin' },
+    { name: 'To‘lovlar', href: '/admin/payments', icon: '💳', role: 'admin' },
+    { name: 'Statistika', href: '/admin/analytics', icon: '📈', role: 'admin' },
+    { name: 'Sozlamalar', href: '/admin/settings', icon: '⚙️', role: 'admin' },
+    { name: 'Xabarlar', href: '/admin/messages', icon: '💬', role: 'admin' },
+    { name: 'Moderatsiya', href: '/admin/moderation', icon: '🛡️', role: 'admin' },
   ]
-
-  // User navigation (fallback)
-  const userNavigation = [
-    { name: 'Boshqaruv paneli', href: '/dashboard', icon: '📊' },
-    { name: 'Barcha Kurslar', href: '/dashboard/all-courses', icon: '📚' },
-    { name: 'Mening Kurslarim', href: '/dashboard/my-courses', icon: '🎓' },
-    { name: 'Sozlamalar', href: '/dashboard/settings', icon: '⚙️' },
-  ]
-
-  // Determine which navigation to use based on role
-  const navigation = admin?.role === 'admin' ? adminNavigation : userNavigation
 
   return (
     <div className='flex min-h-screen bg-linear-to-br from-slate-50 via-blue-50/20 to-indigo-50/10'>

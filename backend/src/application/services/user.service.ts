@@ -5,19 +5,7 @@ export class UserService {
   async getUserByUUID(uuid: string) {
     return await this.userRepository.findByUUID(uuid)
   }
-  async getUserByPhoneOrDeviceId(pin: string, phone?: string, deviceId?: string) {
-    const user = await this.userRepository.findByPhoneOrDeviceId(phone, deviceId)
 
-    if (!user) {
-      throw new Error('Foydalanuvchi topilmadi')
-    }
-    // 🔥 FIX — compare plaintext PIN with stored hash
-    const isPinValid = await bcrypt.compare(pin, user.pin)
-    if (!isPinValid) {
-      throw new Error("Noto'gri pin")
-    }
-    return user
-  }
   // Update user details
   async updateUser(
     uuid: string,
@@ -29,7 +17,7 @@ export class UserService {
     return await this.userRepository.updateUser(uuid, name, phone, pin, profileImage)
   }
 
-  // Delete a user
+
   async deleteUser(uuid: string): Promise<{ status: string; message: string }> {
     return await this.userRepository.deleteUser(uuid)
   }

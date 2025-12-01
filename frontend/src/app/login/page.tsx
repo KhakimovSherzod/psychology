@@ -57,6 +57,7 @@ const LoginPage = () => {
 
       setStep('pin')
     } catch (err) {
+      console.error(err)
       setError('Xatolik yuz berdi')
     } finally {
       setLoading(false)

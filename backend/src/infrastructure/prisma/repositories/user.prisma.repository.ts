@@ -1,8 +1,10 @@
+import type { Prisma } from '@prisma/client'
 import bcrypt from 'bcrypt'
 import { User } from '../../../domain/entities/user.entity'
+import type { IUserRepository } from '../../../domain/repositories/user.repository'
 import { prisma } from '../client'
 
-export class PrismaUserRepository {
+export class PrismaUserRepository implements IUserRepository {
   // Create a new user
   async create(user: User): Promise<User> {
     const record = await prisma.user.create({
@@ -211,74 +213,80 @@ export class PrismaUserRepository {
       }
     }
   }
-async findByPhoneOrDeviceId(phone?: string, deviceId?: string): Promise<User | null> {
-  if (!phone && !deviceId) return null
+  async findByPhoneOrDeviceId(deviceId: string, phone?: string): Promise<User | null> {
+    if (!phone && !deviceId) return null
 
-  const record = await prisma.user.findFirst({
-    where: {
-      OR: [
-        phone ? { phone } : undefined,
-        deviceId ? { deviceId: { has: deviceId } } : undefined
-      ].filter(Boolean)
+    const orConditions: Prisma.UserWhereInput[] = []
+
+    if (phone) {
+      orConditions.push({ phone })
     }
-  })
 
-  if (!record) return null
+    if (deviceId) {
+      orConditions.push({ deviceId: { has: deviceId } })
+    }
 
-  return new User(
-    record.uuid,
-    record.name,
-    record.phone,
-    record.pin,
-    record.deviceId,
-    record.id,
-    record.role,
-    record.profileImage,
-    record.createdAt,
-    record.lastLogin
-  )
-}
+    const record = await prisma.user.findFirst({
+      where: {
+        OR: orConditions,
+      },
+    })
 
+    if (!record) return null
 
-async updateDeviceId(phone: string, deviceId: string): Promise<User | null> {
-  // 1️⃣ Find user by phone
-  const record = await prisma.user.findUnique({
-    where: { phone },
-  })
-
-  if (!record) return null
-
-  const existingIds = record.deviceId || []
-  let updatedDeviceIds = existingIds
-
-  // 2️⃣ Add new deviceId if it doesn't exist
-  if (deviceId && !existingIds.includes(deviceId)) {
-    updatedDeviceIds = [...existingIds, deviceId]
+    return new User(
+      record.uuid,
+      record.name,
+      record.phone,
+      record.pin,
+      record.deviceId,
+      record.id,
+      record.role,
+      record.profileImage,
+      record.createdAt,
+      record.lastLogin
+    )
   }
 
-  // 3️⃣ Update lastLogin and deviceId if needed
-  const updated = await prisma.user.update({
-    where: { phone },
-    data: {
-      deviceId: updatedDeviceIds,
-      lastLogin: new Date(),
-    },
-  })
+  async updateDeviceId(phone: string, deviceId: string): Promise<User | null> {
+    // 1️⃣ Find user by phone
+    const record = await prisma.user.findUnique({
+      where: { phone },
+    })
 
-  // 4️⃣ Return updated User entity
-  return new User(
-    updated.uuid,
-    updated.name,
-    updated.phone,
-    updated.pin,
-    updated.deviceId,
-    updated.id,
-    updated.role,
-    updated.profileImage,
-    updated.createdAt,
-    updated.lastLogin
-  )
-}
+    if (!record) return null
+
+    const existingIds = record.deviceId || []
+    let updatedDeviceIds = existingIds
+
+    // 2️⃣ Add new deviceId if it doesn't exist
+    if (deviceId && !existingIds.includes(deviceId)) {
+      updatedDeviceIds = [...existingIds, deviceId]
+    }
+
+    // 3️⃣ Update lastLogin and deviceId if needed
+    const updated = await prisma.user.update({
+      where: { phone },
+      data: {
+        deviceId: updatedDeviceIds,
+        lastLogin: new Date(),
+      },
+    })
+
+    // 4️⃣ Return updated User entity
+    return new User(
+      updated.uuid,
+      updated.name,
+      updated.phone,
+      updated.pin,
+      updated.deviceId,
+      updated.id,
+      updated.role,
+      updated.profileImage,
+      updated.createdAt,
+      updated.lastLogin
+    )
+  }
 
   async updateLastLogin(phone: string): Promise<void> {
     const nowUtc = new Date()
