@@ -31,6 +31,6 @@
     ".next/types/**/*.ts",
     "next.config.js",
     ".next/dev/types/**/*.ts"
-  ],
+, "src/app/admin/courses/createNewCourse/CreateCourseForm"  ],
   "exclude": ["node_modules"]
 }

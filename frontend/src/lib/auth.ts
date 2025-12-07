@@ -24,12 +24,12 @@ export const getCurrentUser = cache(async () => {
       cache: 'no-store',
     })
     console.log('Fetch user response status:', res)
-
-    if (!res.ok) {
-      throw new Error('Failed to fetch user data')
+    const user = (await res.json())?.user
+    if (user) {
+      return user
+    } else {
+      return null
     }
-
-    return (await res.json()).user
   } catch (error) {
     console.error('Error fetching user data:', error)
     return null

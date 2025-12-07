@@ -67,7 +67,7 @@ export default function ChangePin() {
     setIsLoading(true)
     setError(null)
     try {
-      const res = await fetch('http://localhost:3001/api/users/verify-pin', {
+      const res = await fetch('http://localhost:3001/api/auth/pin/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -93,7 +93,7 @@ export default function ChangePin() {
     setIsLoading(true)
     setError(null)
     try {
-      const res = await fetch('http://localhost:3001/api/users/update/pin', {
+      const res = await fetch('http://localhost:3001/api/auth/pin/update', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

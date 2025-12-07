@@ -98,7 +98,6 @@ const LoginPage = () => {
     setError('')
 
     try {
-      // Get deviceId from localStorage
       const currentDeviceId = localStorage.getItem('deviceId')
 
       if (!currentDeviceId) {
@@ -107,9 +106,8 @@ const LoginPage = () => {
         return
       }
 
-      // Prepare request data with phone (with +), deviceId, and pin
       const requestData = {
-        phone: rawPhone, // This now includes the + sign
+        phone: rawPhone, 
         deviceId: currentDeviceId,
         pin: pinCode,
       }
@@ -118,24 +116,26 @@ const LoginPage = () => {
 
       const res = await fetch('http://localhost:3001/public/login', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(requestData),
       })
 
-      const data = await res.json()
-
       if (!res.ok) {
-        setError(data.message || "PIN kod noto'g'ri")
+        setError("PIN kod noto'g'ri")
+        console.error('Login failed:', await res.text())
         setPin('')
         return
       }
 
-      // Success - redirect to dashboard
+
       router.push('/dashboard')
     } catch (err) {
-      setError('Server bilan ulanishda xatolik')
+      console.error('Login error:', err)
+      const message = err instanceof Error ? err.message : 'Login qilishda xatolik yuz berdi'
+      setError(message)
       setPin('')
     } finally {
       setLoading(false)
