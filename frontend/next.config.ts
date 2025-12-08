@@ -11,6 +11,10 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'vz-645cd866-41b.b-cdn.net',
       },
+      {
+        protocol: 'https',
+        hostname: '/api/image-proxy',
+      },
     ],
   },
 }

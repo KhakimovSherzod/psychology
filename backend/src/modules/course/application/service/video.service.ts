@@ -1,31 +1,73 @@
 import axios from 'axios'
+import crypto from 'crypto'
 
 export class VideoService {
   async generateSignedVideoUploadUrl() {
     const libraryId = process.env.BUNNY_LIBRARY_ID
     const apiKey = process.env.BUNNY_API_KEY
 
-    // Creating video object in Bunny
-    const ReqUploadId = await axios.post(
+    if (!libraryId || !apiKey) throw new Error('Missing Bunny credentials')
+
+    // 1️⃣ Create a new video object in Bunny
+    const createRes = await axios.post(
       `https://video.bunnycdn.com/library/${libraryId}/videos`,
-      {
-        title: 'New Video Upload',
-      },
+      { title: 'New Video Upload' },
       {
         headers: {
           AccessKey: apiKey,
-          Accept: 'application/json',
           'Content-Type': 'application/json',
+          Accept: 'application/json',
         },
       }
     )
 
-    const videoId = ReqUploadId.data.guid
-    const uploadUrl = ReqUploadId.data.upload_url // <-- correct property name
+    const videoId = createRes.data.guid
 
-    console.log('Generated video ID:', videoId, 'upload URL:', uploadUrl)
-    console.log('Bunny API response data:', ReqUploadId)
+    // 2️⃣ Generate presigned SHA256 signature for TUS
+    const expires = Math.floor(Date.now() / 1000) + 3600 // 1 hour
+    const signature = crypto
+      .createHash('sha256')
+      .update(`${libraryId}${apiKey}${expires}${videoId}`)
+      .digest('hex')
 
-    return { videoId, uploadUrl }
+    // 3️⃣ Return presigned TUS upload info to frontend
+    return {
+      videoId,
+      tusUpload: {
+        uploadUrl: 'https://video.bunnycdn.com/tusupload',
+        headers: {
+          AuthorizationSignature: signature,
+          AuthorizationExpire: expires.toString(),
+          LibraryId: libraryId,
+          VideoId: videoId,
+        },
+      },
+    }
+  }
+
+  async uploadVideoThumbnails(
+    libraryId: string,
+    videoId: string,
+    fileBuffer: Buffer,
+    mimeType: string
+  ): Promise<string> {
+    const apiKey = process.env.BUNNY_API_KEY
+    if (!apiKey) throw new Error('Missing Bunny API key')
+
+    const url = `https://video.bunnycdn.com/library/${libraryId}/videos/${videoId}/thumbnail`
+
+    const res = await axios.post(url, fileBuffer, {
+      headers: {
+        AccessKey: apiKey,
+        'Content-Type': mimeType,
+      },
+    })
+
+    if (res.status !== 200) {
+      throw new Error(res.data?.message || 'Failed to upload thumbnail')
+    }
+
+    // Bunny automatically makes the thumbnail available here:
+    return `https://vz-${libraryId}.b-cdn.net/${videoId}/thumbnail.jpg`
   }
 }
