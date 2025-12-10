@@ -30,11 +30,3 @@ export class Playlist {
   ) {}
 }
 
-export class CourseCategories {
-  constructor(
-    public readonly id: string,
-    public name: string,
-    public description: string,
-    public courses?: Course[]
-  ) {}
-}

@@ -5,10 +5,11 @@ import cors from 'cors'
 import express, { type NextFunction, type Request, type Response } from 'express'
 import { protectedUserRoutes } from './modules/user/infrastructure/http/routes/user.route'
 import { authMiddleware } from './shared/middlewares/auth.middleware'
-import { protectedCoursesRoutes } from './modules/course/infrastructure/http/routes/course.route'
+// import { protectedCoursesRoutes } from './modules/course/infrastructure/http/routes/course.route'
 import { videoRoutes } from './modules/course/infrastructure/http/routes/video.routes'
 import { publicAuthRoutes } from './modules/auth/infrastructure/http/routes/auth.routes'
 import { protectedPinRoutes } from './modules/auth/infrastructure/http/routes/pin.routes'
+import { CategoryRoutes } from './modules/course/infrastructure/http/routes/category.route'
 
 const app = express()
 const port = process.env.PORT || 3001
@@ -38,12 +39,12 @@ app.get('/health', (req: Request, res: Response) => {
 app.use('/public/', publicAuthRoutes)
 
 // Protected routes (with auth middleware)
-app.use(authMiddleware)
+// app.use(authMiddleware)
 app.use('/api/users', protectedUserRoutes)
-app.use('/api/courses', protectedCoursesRoutes)
+// app.use('/api/courses', protectedCoursesRoutes)
 app.use('/api/videos', videoRoutes)
 app.use('/api/auth/pin', protectedPinRoutes)
-
+app.use('/api/category',CategoryRoutes)
 // Error handling
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error(err.stack)

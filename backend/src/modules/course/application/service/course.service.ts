@@ -17,15 +17,8 @@ export class CourseService {
     return await this.courseRepository.createCourse(courseData)
   }
 
-  async getAllCategories() {
-    return await this.courseRepository.getCourseCategories()
-  }
 
   async getAllPlaylists() {
     return await this.courseRepository.getCoursePlaylists()
-  }
-
-  async createNewCategories(data: { name: string; description: string }) {
-    return await this.courseRepository.createNewCategories(data)
   }
 }

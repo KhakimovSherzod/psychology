@@ -67,7 +67,7 @@ export class VideoService {
       throw new Error(res.data?.message || 'Failed to upload thumbnail')
     }
 
-    // Bunny automatically makes the thumbnail available here:
+
     return `https://vz-${libraryId}.b-cdn.net/${videoId}/thumbnail.jpg`
   }
 }
