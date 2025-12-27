@@ -19,4 +19,5 @@ export interface IUserRepository {
   findByPhoneOrDeviceId(deviceId: string, phone?: string): Promise<User | null>
   updateDeviceId(phone: string, deviceId: string): Promise<User | null>
   updateLastLogin(phone: string): Promise<void>
+  findAll(): Promise<User[]>
 }

@@ -1,3 +1,4 @@
+import type { User } from '../../domain/entities/user.entity';
 import type { IUserRepository } from '../repositories/user.repository'
 export class UserService {
   constructor(private userRepository: IUserRepository) {}
@@ -18,5 +19,9 @@ export class UserService {
 
   async deleteUser(uuid: string): Promise<{ status: string; message: string }> {
     return await this.userRepository.deleteUser(uuid)
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return await this.userRepository.findAll()
   }
 }

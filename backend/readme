@@ -1,0 +1,2 @@
+i have made create course, i should update it remove non essential data from code, like dto, make better handling for videos,
+make better logging, error handling, i should make global error handler,

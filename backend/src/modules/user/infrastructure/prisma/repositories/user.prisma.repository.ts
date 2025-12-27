@@ -296,4 +296,24 @@ export class PrismaUserRepository implements IUserRepository {
       data: { lastLogin: nowUtc },
     })
   }
+
+  async findAll(): Promise<User[]> {
+    const records = await prisma.user.findMany()
+
+    return records.map(
+      record =>
+        new User(
+          record.uuid,
+          record.name,
+          record.phone,
+          record.pin,
+          record.deviceId,
+          record.id,
+          record.role,
+          record.profileImage,
+          record.createdAt,
+          record.lastLogin
+        )
+    )
+  }
 }

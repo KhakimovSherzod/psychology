@@ -1,8 +1,9 @@
 // infrastructure/http/controllers/user.controller.ts
 
 import { UserService } from '@/modules/user/application/services/user.service'
-import type { Request, Response } from 'express'
+import type { NextFunction, Request, Response } from 'express'
 import { PrismaUserRepository } from '../../prisma/repositories/user.prisma.repository'
+import { logger } from '@/utils/logger'
 
 export class UserController {
   private userRepo = new PrismaUserRepository()
@@ -24,7 +25,6 @@ export class UserController {
       message: 'Successfully fetched user',
     })
   }
-
 
   async update(req: Request, res: Response): Promise<Response> {
     try {
@@ -89,5 +89,38 @@ export class UserController {
     }
   }
 
+ async getAllUsers(req: Request, res: Response, next: NextFunction): Promise<void> {
+    logger.info('GET all users request received in controller in getAllUsers function')
 
+    try {
+      const users = await this.userService.getAllUsers()
+      res.status(200).json({ users })
+      logger.info('GET /users successful, returned %d users', users.length)
+    } catch (err) {
+      logger.error('GET /users failed: %o', err)
+      next(err) 
+    }
+  }
+  async getUserByUuid(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const { uuid } = req.params
+    logger.info('GET user by UUID request received in controller in getUserByUuid function for UUID: %s', uuid)
+    if(!uuid){
+      res.status(400).json({ message: 'UUID parameter is required' })
+      logger.warn('GET /users/%s failed: UUID parameter is missing', uuid)
+      return
+    }
+    try {
+      const user = await this.userService.getUserByUUID(uuid)
+      if (!user) {
+        res.status(404).json({ message: 'User not found' })
+        logger.warn('GET /users/%s failed: User not found', uuid)
+        return
+      }
+      res.status(200).json({ user })
+      logger.info('GET /users/%s successful', uuid)
+    } catch (err) {
+      logger.error('GET /users/%s failed: %o', uuid, err)
+      next(err) 
+    }
+  }
 }

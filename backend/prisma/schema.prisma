@@ -28,25 +28,14 @@ model User {
 }
 
 
-// ------------------ Courses ------------------
-model Course {
-  id         Int        @id @default(autoincrement())
-  uuid       String     @unique @default(uuid())
-  title      String
-  playlists  Playlist[]
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
-}
-
 // ------------------ Playlists ------------------
 model Playlist {
   id          Int        @id @default(autoincrement())
   uuid        String     @unique @default(uuid())
   title       String
   description String?
+  playlistThumbnailUrl String?
   order       Int?
-  courseId    Int
-  course      Course     @relation(fields: [courseId], references: [id])
   videos      Video[]
   categories  Category[] @relation("PlaylistCategories")
   createdAt   DateTime   @default(now())
@@ -60,6 +49,7 @@ model Video {
   title       String
   description String?
   playbackUrl String
+  videoThumbnailUrl String?
   order       Int?
   playlistId  Int
   playlist    Playlist   @relation(fields: [playlistId], references: [id])

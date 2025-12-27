@@ -1,5 +1,11 @@
 import { getCurrentUser } from '@/lib/auth'
+import axios from 'axios'
 import CoursesManagement from './CoursesManagement'
+
+
+  //env variables
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL
+  console.log('Backend URL:', backendUrl)
 
 // Mock data - replace with actual API calls
 const mockCourses = [
@@ -80,11 +86,21 @@ async function getCoursesData() {
     }, 0),
   }
 }
+  async function getplaylists() {
+    const playlists = await axios.get(`${backendUrl}/api/playlist/`,{
+      withCredentials: true,
+    })  
+    
+    return playlists.data
+  }
 
 export default async function AdminCoursesPage() {
   const currentUser = await getCurrentUser()
   const coursesData = await getCoursesData()
+const playlists = await getplaylists()
 
+
+  
   if (currentUser?.role !== 'ADMIN') {
     return (
       <div className='p-6'>
@@ -98,6 +114,7 @@ export default async function AdminCoursesPage() {
 
   return (
     <CoursesManagement
+      playlists={playlists}
       initialCourses={coursesData.courses}
       categories={coursesData.categories}
       stats={{

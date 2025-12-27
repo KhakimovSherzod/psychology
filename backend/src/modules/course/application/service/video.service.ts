@@ -1,7 +1,19 @@
 import axios from 'axios'
 import crypto from 'crypto'
-
+import type { Video } from '../../domain/entities/video.entity'
+import type { IVideoRepository } from '../repository/video.repository'
+export interface CreateVideoDto {
+  title: string
+  description?: string
+  playbackUrl: string
+  videoThumbnailUrl?: string
+  playlistId: string
+  order?: number
+  categories?: string[] // array of category UUIDs
+}
 export class VideoService {
+  constructor(private VideoRepo: IVideoRepository) {}
+
   async generateSignedVideoUploadUrl() {
     const libraryId = process.env.BUNNY_LIBRARY_ID
     const apiKey = process.env.BUNNY_API_KEY
@@ -67,7 +79,12 @@ export class VideoService {
       throw new Error(res.data?.message || 'Failed to upload thumbnail')
     }
 
-
     return `https://vz-${libraryId}.b-cdn.net/${videoId}/thumbnail.jpg`
+  }
+  async createVideo(dto: CreateVideoDto): Promise<Video> {
+    return await this.VideoRepo.createVideo(dto)
+  }
+  async getAllVideos() {
+    return await this.VideoRepo.getAllVideos()
   }
 }

@@ -44,7 +44,6 @@ export class PrismaCategoryRepository implements ICategoryRepository {
     const newCategory = await prisma.category.create({
       data: {
         name: category.name,
-        // uuid and timestamps are handled by Prisma
       },
     })
 
