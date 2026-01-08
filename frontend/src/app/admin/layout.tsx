@@ -12,6 +12,7 @@ type DashboardLayoutProps = {
 
 export default async function DashboardLayout({ children }: DashboardLayoutProps) {
   const admin = await getCurrentUser()
+  console.log('Current Admin:', admin)
   if (admin.role === 'ADMIN')
     return <DashboardAdminLayout admin={admin}>{children}</DashboardAdminLayout>
   return (

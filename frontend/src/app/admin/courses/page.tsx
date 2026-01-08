@@ -1,11 +1,11 @@
 import { getCurrentUser } from '@/lib/auth'
 import axios from 'axios'
 import CoursesManagement from './CoursesManagement'
+import { headers } from 'next/headers'
 
-
-  //env variables
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL
-  console.log('Backend URL:', backendUrl)
+//env variables
+const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL
+console.log('Backend URL:', backendUrl)
 
 // Mock data - replace with actual API calls
 const mockCourses = [
@@ -86,21 +86,23 @@ async function getCoursesData() {
     }, 0),
   }
 }
-  async function getplaylists() {
-    const playlists = await axios.get(`${backendUrl}/api/playlist/`,{
-      withCredentials: true,
-    })  
-    
-    return playlists.data
-  }
+async function getplaylists() {
+  const cookies = (await headers()).get('cookie') || ''
+  const playlists = await axios.get(`${backendUrl}/api/playlist/`, {
+    headers: {
+      Cookie: cookies,
+    },
+    withCredentials: true,
+  })
+
+  return playlists.data
+}
 
 export default async function AdminCoursesPage() {
   const currentUser = await getCurrentUser()
   const coursesData = await getCoursesData()
-const playlists = await getplaylists()
+  const playlists = await getplaylists()
 
-
-  
   if (currentUser?.role !== 'ADMIN') {
     return (
       <div className='p-6'>

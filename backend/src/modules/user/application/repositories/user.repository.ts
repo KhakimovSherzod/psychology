@@ -1,23 +1,33 @@
+// src/modules/user/application/repositories/user.repository.ts
+
 import type { User } from '@/modules/user/domain/entities/user.entity'
+import type { UserRole } from '@/shared/enums/UserRole.enum'
+import type { UserStatus } from '@/shared/enums/UserStatus.enum'
 
 export interface IUserRepository {
+  // Find methods
   findByPhone(phone: string): Promise<User | null>
+  findByUUID(uuid: string): Promise<User>
+  findByPhoneOrDeviceId(deviceId: string, phone?: string): Promise<User>
+
+  // CRUD operations
   create(user: User): Promise<User>
-  findByUUID(uuid: string): Promise<User | null>
-  updateUser(
-    uuid: string,
-    name?: string,
-    phone?: string,
-    pin?: string,
-    profileImage?: string
-  ): Promise<{ status: number; message: string }>
+  save(user: User): Promise<User>
+  delete(uuid: string): Promise<void>
 
-  deleteUser(uuid: string): Promise<{ status: string; message: string }>
+  // Business operations
+  verifyPin(deviceId: string, pin: string): Promise<boolean>
+  changePin(uuid: string, newPinHash: string): Promise<void>
+  updateDeviceId(uuid: string, deviceId: string): Promise<User>
+  updateLastLogin(uuid: string): Promise<void>
 
-  verifyPin(uuid: string, pin: string): Promise<boolean>
-  changePin(uuid: string, newPin: string): Promise<{ status: number; message: string }>
-  findByPhoneOrDeviceId(deviceId: string, phone?: string): Promise<User | null>
-  updateDeviceId(phone: string, deviceId: string): Promise<User | null>
-  updateLastLogin(phone: string): Promise<void>
-  findAll(): Promise<User[]>
+  // Query operations
+  findAll(includeDeleted?: boolean): Promise<User[]>
+  findByRole(role: UserRole): Promise<User[]>
+  findByStatus(status: UserStatus): Promise<User[]>
+  count(includeDeleted?: boolean): Promise<number>
+
+  // Existence checks
+  existsByPhone(phone: string): Promise<boolean>
+  existsByUuid(uuid: string): Promise<boolean>
 }

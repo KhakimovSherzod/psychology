@@ -2,17 +2,17 @@
 import { PrismaClient } from '@prisma/client'
 import cookieParser from 'cookie-parser'
 import cors from 'cors'
-import express, { type NextFunction, type Request, type Response } from 'express'
-import { protectedUserRoutes } from './modules/user/infrastructure/http/routes/user.route'
-import { authMiddleware } from './shared/middlewares/auth.middleware'
-import { videoRoutes } from './modules/course/infrastructure/http/routes/video.routes'
+import express, { type Request, type Response } from 'express'
 import { publicAuthRoutes } from './modules/auth/infrastructure/http/routes/auth.routes'
 import { protectedPinRoutes } from './modules/auth/infrastructure/http/routes/pin.routes'
 import { CategoryRoutes } from './modules/course/infrastructure/http/routes/category.route'
 import { PlaylistRoutes } from './modules/course/infrastructure/http/routes/playlist.route'
+import { videoRoutes } from './modules/course/infrastructure/http/routes/video.routes'
+import { protectedUserRoutes } from './modules/user/infrastructure/http/routes/user.route'
+import { authMiddleware } from './shared/middlewares/auth.middleware'
 
 const app = express()
-const port = process.env.PORT || 3001
+const port = process.env.PORT
 
 const corsOptions = {
   origin: 'http://localhost:3000',
@@ -21,7 +21,6 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 }
 
-
 app.use(cors(corsOptions))
 
 // Increase payload size for file uploads
@@ -29,32 +28,23 @@ app.use(express.json({ limit: '500mb' }))
 app.use(express.urlencoded({ limit: '500mb', extended: true }))
 app.use(cookieParser())
 
-
-
 // Health check
 app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'OK', message: 'Server is running' })
 })
 
 app.use('/public/', publicAuthRoutes)
-app.use('/api/category',CategoryRoutes)
-app.use('/api/playlist', PlaylistRoutes)
-// Protected routes (with auth middleware)
+
+
+//   ----------------------- MIDDLEWARE PROTECTED ROUTES -----------------------
 app.use(authMiddleware)
+app.use('/api/playlist', PlaylistRoutes)
+app.use('/api/category', CategoryRoutes)
 app.use('/api/users', protectedUserRoutes)
 app.use('/api/videos', videoRoutes)
 app.use('/api/auth/pin', protectedPinRoutes)
 
-// Error handling
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  console.error(err.stack)
-  res.status(500).json({ error: err.message })
-})
-
-// 404 handler
-app.use((req: Request, res: Response, next: NextFunction) => {
-  res.status(404).json({ error: 'Route not found' })
-})
+// app.use(errorMiddleware)
 
 // Start server
 const server = app.listen(port, () => {

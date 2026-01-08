@@ -3,8 +3,8 @@ import bcrypt from 'bcrypt'
 export class PinService {
   constructor(private userRepository: IUserRepository) {}
   
-  async verifyPin(uuid: string, pin: string): Promise<boolean> {
-    return await this.userRepository.verifyPin(uuid, pin)
+  async verifyPin(deviceId: string, pin: string): Promise<boolean> {
+    return await this.userRepository.verifyPin(deviceId, pin)
   }
 
   async changePin(uuid: string, newPin: string): Promise<{ status: number; message: string }> {

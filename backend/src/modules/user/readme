@@ -1,0 +1,24 @@
+# User management
+
+# List all users
+
+# View user details
+
+# update status(activate,deactivate,ban, suspend) <-- when i update status, if i sent without jwt to the /api/users/ :uuid / status it updates without check of jwt fix it should authenticate then process code
+
+# Assign or change roles (User, Admin, Owner) <-- i need to update role based update,now anyone could update, i need to implement rbac here
+
+# Role & Permission management
+
+# Add/edit roles (if roles are dynamic), Assign permissions (if fine-grained) <-- will be handled when system grows
+
+# Enforce role hierarchy (User < Admin < Owner)
+
+Administrative actions
+
+# Delete users
+
+Merge duplicate accounts
+
+Inside RBAC implement user status validation 
+

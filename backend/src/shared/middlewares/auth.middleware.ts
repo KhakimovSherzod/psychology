@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from 'express'
 
 import { UserService } from '@/modules/user/application/services/user.service'
+import { RoleFactory } from '@/modules/user/domain/value-objects/RoleFactory'
 import { generateAccessToken } from '../../lib/generate-jwt'
 import { verifyAccessToken, verifyRefreshToken } from '../../lib/verify-jwt'
 import { PrismaUserRepository } from '../../modules/user/infrastructure/prisma/repositories/user.prisma.repository'
@@ -20,7 +21,10 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
     const decodedAccess = await verifyAccessToken(accessToken)
 
     if (decodedAccess) {
-      req.user = decodedAccess // { sub, role }
+      req.user = {
+        sub: decodedAccess.sub,
+        role: RoleFactory.fromName(decodedAccess.role), // <-- Role instance
+      }
       console.log('access token verified', decodedAccess)
       return next()
     }
@@ -50,23 +54,23 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
 
   if (!user) {
     console.error('user not found when searched by uuid from refresh token')
-    return res.status(401).json({ message: 'User not found' })
+    return res.status(404).json({ message: 'User not found' })
   }
-
-  // User contains role from DB
-  const role = user.role || ''
 
   // --------------------------------------------------------
   // 4. GENERATE NEW ACCESS TOKEN
   // --------------------------------------------------------
   await generateAccessToken({
-    uuid,
-    role,
+    uuid: user.uuid,
+    role: user.role,
     res,
   })
   console.log('generated and setted access token to http only cookies')
   // Attach validated auth info for controller use
-  req.user = { sub: uuid, role }
+  req.user = {
+    sub: user.uuid,
+    role: RoleFactory.fromName(user.role),
+  }
 
   return next()
 }

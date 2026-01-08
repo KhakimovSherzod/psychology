@@ -43,3 +43,4 @@ next-env.d.ts
 frontend/.next/
 frontend/node_modules/
 backend/node_modules/
+/generated/prisma

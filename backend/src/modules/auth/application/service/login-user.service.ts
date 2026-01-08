@@ -7,17 +7,15 @@ export class LoginUserService {
   async login(deviceId: string, pin: string, phone?: string) {
     const user = await this.userRepository.findByPhoneOrDeviceId(deviceId, phone)
 
-    if (!user || user === null) {
-      throw new Error('Foydalanuvchi topilmadi')
-    }
     // 🔥 FIX — compare plaintext PIN with stored hash
-    const isPinValid = await bcrypt.compare(pin, user.pin)
+    const isPinValid = await bcrypt.compare(pin, user.pinHash)
     if (!isPinValid) {
       throw new Error("Noto'gri pin")
     }
-    await this.userRepository.updateLastLogin(user.phone)
 
-    await this.userRepository.updateDeviceId(user.phone, deviceId)
+    await this.userRepository.updateLastLogin(user.uuid)
+
+    await this.userRepository.updateDeviceId(user.uuid, deviceId)
     return user
   }
 }

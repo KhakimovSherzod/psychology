@@ -14,6 +14,12 @@ const LoginPage = () => {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  //env variables
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
+  if (!BACKEND_URL) {
+    throw new Error('BACKEND_URL is required but not defined in environment variables!')
+  }
+
   // Check if deviceId exists in localStorage on component mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -100,6 +106,7 @@ const LoginPage = () => {
     try {
       const currentDeviceId = localStorage.getItem('deviceId')
 
+      // If no deviceId exists in localStorage, generate a new one
       if (!currentDeviceId) {
         setError("Device ID topilmadi. Iltimos, qaytadan urinib ko'ring.")
         setPin('')
@@ -107,14 +114,14 @@ const LoginPage = () => {
       }
 
       const requestData = {
-        phone: rawPhone, 
         deviceId: currentDeviceId,
         pin: pinCode,
+        ...(rawPhone && { phone: rawPhone }),
       }
 
       console.log('Sending login request:', requestData)
 
-      const res = await fetch('http://localhost:3001/public/login', {
+      const res = await fetch(`${BACKEND_URL}/public/login`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -130,6 +137,24 @@ const LoginPage = () => {
         return
       }
 
+      // Parse the response to get the deviceId from backend
+      const responseData = await res.json()
+      console.log('Login response:', responseData)
+
+      // If backend returns a deviceId, store it
+      if (responseData.deviceId) {
+        localStorage.setItem('deviceId', responseData.deviceId)
+        setDeviceId(responseData.deviceId)
+        console.log('Device ID set from backend:', responseData.deviceId)
+      } else if (responseData.data?.deviceId) {
+        // Handle nested deviceId if it's in a data property
+        localStorage.setItem('deviceId', responseData.data.deviceId)
+        setDeviceId(responseData.data.deviceId)
+        console.log('Device ID set from backend data:', responseData.data.deviceId)
+      } else if (currentDeviceId) {
+        // If backend doesn't return deviceId, keep the one we generated
+        console.log('Using locally generated deviceId:', currentDeviceId)
+      }
 
       router.push('/dashboard')
     } catch (err) {

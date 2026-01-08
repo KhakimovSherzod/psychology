@@ -1,0 +1,9 @@
+# reassign user role
+
+get statistics of payment,courses, users and so on
+
+when user deleted it can not be to change to other status, handle this logic properly when status deleted it should be possible to admin change status
+
+# mobile first approach
+
+implement pagination and work with performance 

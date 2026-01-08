@@ -2,7 +2,9 @@
 
 import { PinService } from '@/modules/auth/application/service/pin-user.service'
 import { PrismaUserRepository } from '@/modules/user/infrastructure/prisma/repositories/user.prisma.repository'
-import type { Request, Response } from 'express'
+import type { NextFunction, Request, Response } from 'express'
+import { ResetPinPhoneSchema } from '../validator/reset.validator'
+import { logger } from '@/utils/logger'
 
 export class PinController {
   private userRepo = new PrismaUserRepository()
@@ -10,18 +12,17 @@ export class PinController {
 
   async verifyPin(req: Request, res: Response): Promise<Response> {
     try {
-      const uuid = req.user?.sub
-      const { pin } = req.body
+      const { deviceId,phone, pin } = req.body
 
-      if (!uuid) {
-        return res.status(400).json({ message: 'User UUID not found' })
+      if (!deviceId) {
+        return res.status(400).json({ message: 'Device ID not found' })
       }
 
       if (!pin) {
         return res.status(400).json({ message: 'PIN not provided' })
       }
 
-      const isValid = await this.pinService.verifyPin(uuid, pin)
+      const isValid = await this.pinService.verifyPin(deviceId, pin)
 
       return res.status(200).json({ isValid })
     } catch (err: any) {
@@ -58,4 +59,23 @@ export class PinController {
       return res.status(500).json({ message: 'Internal Server Error' })
     }
   }
+
+  //  async resetPin(req: Request, res: Response, next: NextFunction): Promise<void> {
+  //   const { phone } = ResetPinPhoneSchema.parse({
+  //     phone: req.body.phone,
+  //   })
+  //   logger.info(
+  //     "POST reset PIN request received in controller in resetPin function for PHONE: %s",
+  //     phone
+  //   )
+
+  //   try {
+  //     await this.pinService.resetPinByPhone(phone)
+  //     res.status(200).send()
+  //     logger.info("POST /users/reset-pin successful for PHONE: %s", phone)
+  //   } catch (err) {
+  //     logger.error("POST /users/reset-pin failed for PHONE: %s with error: %o", phone, err)
+  //     next(err)
+  //   }
+  // }
 }

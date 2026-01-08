@@ -1,0 +1,6 @@
+export enum CategoryPermission {
+  CREATE = 'CATEGORY_CREATE',
+  READ   = 'CATEGORY_READ',
+  UPDATE = 'CATEGORY_UPDATE',
+  DELETE = 'CATEGORY_DELETE',
+}

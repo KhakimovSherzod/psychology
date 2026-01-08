@@ -1,9 +1,13 @@
 // infrastructure/http/controllers/user.controller.ts
 
 import { UserService } from '@/modules/user/application/services/user.service'
+import { logger } from '@/utils/logger'
 import type { NextFunction, Request, Response } from 'express'
 import { PrismaUserRepository } from '../../prisma/repositories/user.prisma.repository'
-import { logger } from '@/utils/logger'
+import { CreateUserSchema } from '../../validator/create.user.validator'
+import { updateUserRoleSchema } from '../../validator/role.validator'
+import { updateUserStatusSchema } from '../../validator/status.validator'
+import { updateUserCredentialsSchema, uuidParamSchema } from '../../validator/update.user.validator'
 
 export class UserController {
   private userRepo = new PrismaUserRepository()
@@ -26,70 +30,59 @@ export class UserController {
     })
   }
 
-  async update(req: Request, res: Response): Promise<Response> {
+  async update(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const uuid = req.user?.sub // 'sub' should be the UUID of the user
-      if (!uuid) {
-        return res.status(400).json({ message: 'User UUID not found' })
-      }
+      const uuid = uuidParamSchema.parse(req.user?.sub)
 
-      const { name, phone, pin, profileImage } = req.body // Get the data to update from request body
-      if (!name && !phone && !pin && !profileImage) {
-        return res.status(400).json({ message: 'No data provided to update' })
-      }
+      const updateObject = updateUserCredentialsSchema.parse(req.body) // Get the data to update from request body
+
+      const filteredObjects = Object.fromEntries(
+        Object.entries(updateObject).filter(([_, v]) => v !== undefined)
+      )
+      logger.info(
+        'update user credentials: %o, in user controller update function',
+        filteredObjects
+      )
 
       // Call service to update the user
-      const result = await this.userService.updateUser(uuid, name, phone, pin, profileImage)
+      const result = await this.userService.updateUser(uuid, filteredObjects)
 
-      // If the result contains an error status, return it to the client
-      if (result.status !== 200) {
-        return res.status(result.status).json({ message: result.message })
-      }
-      console.log('user controller status', result.status, 'and message', result.message)
       // If the update is successful, return the success message
-      return res.status(result.status).json({
-        message: result.message,
-      })
+      res
+        .status(200)
+        .json({
+          result,
+        })
+        .send()
     } catch (err: any) {
       // If error details are available, propagate them; otherwise, return 500
-      console.error('Error occurred while updating user:', err)
-      if (err?.status && err?.message) {
-        return res.status(err.status).json({ message: err.message })
-      }
-      return res.status(500).json({ message: 'Internal Server Error' })
+      logger.error('Error occurred while updating user:', err)
+      next(err)
     }
   }
 
-  async delete(req: Request, res: Response): Promise<Response> {
+  async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const uuid = req.user?.sub // 'sub' should be the UUID of the user
-      if (!uuid) {
-        return res.status(400).json({ message: 'User UUID not found' })
-      }
+      const uuid = uuidParamSchema.parse(req.user?.sub)
 
       // Call service to delete the user
       const result = await this.userService.deleteUser(uuid)
 
-      // If the result contains an error status, return it to the client
-      if (result.status !== '200') {
-        return res.status(parseInt(result.status)).json({ message: result.message })
-      }
+      logger.info('User with UUID %s deleted successfully', uuid)
 
-      // If the deletion is successful, return success message
-      return res.status(200).json({
-        message: result.message,
-      })
-    } catch (err: any) {
-      // If error details are available, propagate them; otherwise, return 500
-      console.error('Error occurred while deleting user:', err)
-      if (err?.status && err?.message) {
-        return res.status(err.status).json({ message: err.message })
-      }
-      return res.status(500).json({ message: 'Internal Server Error' })
+      res
+        .status(200)
+        .json({
+          result,
+        })
+        .send()
+    } catch (err) {
+      logger.error('Error occurred while deleting user:', err)
+      next(err)
     }
   }
-
- async getAllUsers(req: Request, res: Response, next: NextFunction): Promise<void> {
+  // Admin: Get all users
+  async getAllUsers(_req: Request, res: Response, next: NextFunction): Promise<void> {
     logger.info('GET all users request received in controller in getAllUsers function')
 
     try {
@@ -98,13 +91,16 @@ export class UserController {
       logger.info('GET /users successful, returned %d users', users.length)
     } catch (err) {
       logger.error('GET /users failed: %o', err)
-      next(err) 
+      next(err)
     }
   }
   async getUserByUuid(req: Request, res: Response, next: NextFunction): Promise<void> {
     const { uuid } = req.params
-    logger.info('GET user by UUID request received in controller in getUserByUuid function for UUID: %s', uuid)
-    if(!uuid){
+    logger.info(
+      'GET user by UUID request received in controller in getUserByUuid function for UUID: %s',
+      uuid
+    )
+    if (!uuid) {
       res.status(400).json({ message: 'UUID parameter is required' })
       logger.warn('GET /users/%s failed: UUID parameter is missing', uuid)
       return
@@ -120,7 +116,71 @@ export class UserController {
       logger.info('GET /users/%s successful', uuid)
     } catch (err) {
       logger.error('GET /users/%s failed: %o', uuid, err)
-      next(err) 
+      next(err)
+    }
+  }
+
+  // Admin: Update user status by UUID
+  async updateUserStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const { uuid, status } = updateUserStatusSchema.parse({
+      uuid: req.params.uuid,
+      status: req.body.status,
+    })
+    logger.info(
+      'PATCH user status request received in controller in updateUserStatus function for UUID: %s to STATUS: %s',
+      uuid,
+      status
+    )
+
+    try {
+      await this.userService.updateUserStatus(uuid, status)
+      res.status(200).send()
+      logger.info('PATCH /users/%s/status successful to STATUS: %s', uuid, status)
+    } catch (err) {
+      logger.error('PATCH /users/%s/status failed: %o', uuid, err)
+      next(err)
+    }
+  }
+
+  // Admin: Update user role by UUID
+  async updateUserRole(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const { uuid, role } = updateUserRoleSchema.parse({
+      uuid: req.params.uuid,
+      role: req.body.role,
+    })
+    logger.info(
+      'PATCH user role request received in controller in updateUserRole function for UUID: %s to ROLE: %s',
+      uuid,
+      role
+    )
+
+    try {
+      await this.userService.updateUserRole(uuid, role)
+      res.status(200).send()
+      logger.info('PATCH /users/%s/role successful to ROLE: %s', uuid, role)
+    } catch (err) {
+      logger.error('PATCH /users/%s/role failed: %o', uuid, err)
+      next(err)
+    }
+  }
+  async createUser(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const { name, phone, pin, role } = CreateUserSchema.parse(req.body)
+    logger.info(
+      'create User function in user controller got credentials name:%s, phone: %s, pin',
+      name,
+      phone
+    )
+
+    try {
+      const createdUser = await this.userService.createUser(name, phone, pin, role)
+      logger.info(
+        'created new user in createUser function in user controller with this credentials: %o',
+        createdUser
+      )
+      res.status(200).json(createdUser)
+    } catch (err) {
+      logger.error('in user controller create new user failed: %o', err)
+      next(err)
     }
   }
 }

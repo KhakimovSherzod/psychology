@@ -1,0 +1,7 @@
+//! TODO
+
+// i have to implement PIN reset feature in the backend and frontend parts.
+// also in frontend and backend it has been implemented partially
+// but it changes pin in settings with uuid but in login its not possible
+// because it requires uuid and uuid does not have who wants to
+// implement reset pin or unify it with changepin feature

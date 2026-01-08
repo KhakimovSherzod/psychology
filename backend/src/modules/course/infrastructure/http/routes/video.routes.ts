@@ -1,3 +1,5 @@
+import { Permission } from '@/shared/enums/UserPermission.enum'
+import { requirePermission } from '@/shared/middlewares/rbac.middleware'
 import { Router } from 'express'
 import multer from 'multer'
 import { VideoController } from '../controllers/video.controller'
@@ -18,6 +20,8 @@ router.post(
 router.post('/', (req, res) => videoController.createVideo(req, res))
 router.get('/', (req, res) => videoController.getAllVideos(req, res))
 
-router.post('/sync-youtube-videos', (req, res) => videoController.syncYouTube(req, res))
+router.post('/sync-youtube-videos', requirePermission(Permission.MANAGE), (req, res) =>
+  videoController.syncYouTube(req, res)
+)
 
 export { router as videoRoutes }

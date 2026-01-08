@@ -1,9 +1,10 @@
+import type { UserRole } from '@/shared/enums/UserRole.enum'
 import type { Response } from 'express'
 import jwt from 'jsonwebtoken'
 
 type GenerateAccessTokenProps = {
   uuid: string
-  role: string
+  role: UserRole
   res: Response
 }
 
@@ -12,7 +13,7 @@ export async function generateAccessToken({ uuid, role, res }: GenerateAccessTok
     expiresIn: '15m',
   })
 
-  if (accessToken) {
+  if (accessToken) {  
     // Set cookie directly in the response
     res.cookie('access_token', accessToken, {
       httpOnly: true,
@@ -38,7 +39,7 @@ export async function generateRefreshToken({ uuid, res }: { uuid: string; res: R
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge: 31 * 24 * 60 * 60 * 1000, 
+      maxAge: 31 * 24 * 60 * 60 * 1000,
       domain: process.env.NODE_ENV === 'production' ? 'yourdomain.com' : 'localhost',
       path: '/',
     })

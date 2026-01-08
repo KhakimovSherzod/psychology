@@ -4,7 +4,10 @@ import { generateAccessToken, generateRefreshToken } from '@/lib/generate-jwt'
 import { LoginUserService } from '@/modules/auth/application/service/login-user.service'
 import { RegisterUserService } from '@/modules/auth/application/service/register-user.service'
 import { PrismaUserRepository } from '@/modules/user/infrastructure/prisma/repositories/user.prisma.repository'
-import type { Request, Response } from 'express'
+import { logger } from '@/utils/logger'
+import type { NextFunction, Request, Response } from 'express'
+import { loginSchema } from '../validator/login.validator'
+import { registerCredentialsSchema } from '../validator/register.credentials.validator'
 
 export class AuthController {
   private userRepo = new PrismaUserRepository()
@@ -13,7 +16,7 @@ export class AuthController {
 
   async register(req: Request, res: Response) {
     try {
-      const { name, phone, pin, deviceId } = req.body
+      const { name, phone, pin, deviceId } = registerCredentialsSchema.parse(req.body)
 
       // Call service to create user and generate tokens
       const { createdUser } = await this.registerService.execute({
@@ -51,28 +54,23 @@ export class AuthController {
     }
   }
 
-  async login(req: Request, res: Response) {
+  async login(req: Request, res: Response, next: NextFunction) {
     try {
-      const { phone, pin, deviceId } = req.body
+      const { deviceId, pin, phone } = loginSchema.parse(req.body)
 
-      if (!pin) {
-        return res.status(400).json({ message: 'PIN taqdim etilmagan' })
-      }
+      logger.info('Filtered login credentials: %o', { deviceId, pin, phone })
 
-      if (!phone && !deviceId) {
-        return res.status(400).json({ message: 'Telefon yoki Qurilma ID taqdim etilmagan' })
-      }
-
-      const user = await this.loginService.login(deviceId, pin, phone)
-
-      if (!user) {
-        return res.status(401).json({ message: "Noto'gri pin yoki qurilma id" })
-      }
+      const user = await this.loginService.login(
+        deviceId,
+        pin,
+        phone
+      )
+      logger.info('Login request processed for user:%s', user.uuid)
 
       // generate tokens
       const accessToken = await generateAccessToken({
         uuid: user.uuid,
-        role: user.role || 'USER',
+        role: user.role,
         res,
       })
 
@@ -91,15 +89,8 @@ export class AuthController {
         message: 'User logged in successfully',
       })
     } catch (err) {
-      console.error('Login error:', err)
-
-      let message = "Noto'gri pin yoki qurilma id"
-
-      if (err instanceof Error) {
-        message = err.message
-      }
-
-      return res.status(404).json({ message })
+      logger.error('Login error:', err)
+      next(err)
     }
   }
 }

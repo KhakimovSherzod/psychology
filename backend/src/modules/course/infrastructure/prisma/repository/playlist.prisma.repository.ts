@@ -33,6 +33,7 @@ export class PlaylistPrismaRepository implements IPlaylistRespository {
         order: 'asc',
       },
     })
+    if (!playlists || playlists.length === 0) return []
 
     return playlists.map(
       playlist =>

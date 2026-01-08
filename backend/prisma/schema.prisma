@@ -1,3 +1,4 @@
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,58 +14,165 @@ enum Role {
   OWNER
 }
 
+enum Status {
+  PENDING
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  BANNED
+  DELETED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CLICK
+  PAYME
+  STRIPE
+  PAYPAL
+  MANUAL
+}
+
 // ------------------ Users ------------------
 model User {
   id           Int       @id @default(autoincrement())
   uuid         String    @unique @default(uuid())
   name         String
   role         Role      @default(USER)
+  status       Status    @default(ACTIVE)
   phone        String    @unique
-  pin          String
+  pinHash      String
   profileImage String?
   deviceId     String[]
   createdAt    DateTime  @default(now())
   lastLogin    DateTime?
-}
+  deletedAt    DateTime?
 
+  payments     Payment[]
+  enrollments  Enrollment[]
+  wishlists    Wishlist[]
+  reviews      Review[]
+}
 
 // ------------------ Playlists ------------------
 model Playlist {
-  id          Int        @id @default(autoincrement())
-  uuid        String     @unique @default(uuid())
-  title       String
-  description String?
+  id                   Int        @id @default(autoincrement())
+  uuid                 String     @unique @default(uuid())
+  title                String
+  description          String?
   playlistThumbnailUrl String?
-  order       Int?
-  videos      Video[]
-  categories  Category[] @relation("PlaylistCategories")
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  order                Int?
+  price                Decimal?
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+
+  videos               Video[]
+  categories           Category[]   @relation("PlaylistCategories")
+  payments             Payment[]
+  enrollments          Enrollment[]
+  wishlists            Wishlist[]
+  reviews              Review[]
 }
 
 // ------------------ Videos ------------------
 model Video {
-  id          Int        @id @default(autoincrement())
-  uuid        String     @unique @default(uuid())
-  title       String
-  description String?
-  playbackUrl String
+  id                Int        @id @default(autoincrement())
+  uuid              String     @unique @default(uuid())
+  title             String
+  description       String?
+  playbackUrl       String
   videoThumbnailUrl String?
-  order       Int?
-  playlistId  Int
-  playlist    Playlist   @relation(fields: [playlistId], references: [id])
-  categories  Category[] @relation("VideoCategories")
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  order             Int?
+  isFree            Boolean    @default(false)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  playlistId        Int
+  playlist          Playlist   @relation(fields: [playlistId], references: [id])
+
+  categories        Category[] @relation("VideoCategories")
 }
 
 // ------------------ Categories ------------------
 model Category {
-  id          Int        @id @default(autoincrement())
-  uuid        String     @unique @default(uuid())
-  name        String     @unique
-  videos      Video[]    @relation("VideoCategories")
-  playlists   Playlist[] @relation("PlaylistCategories")
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id         Int         @id @default(autoincrement())
+  uuid       String      @unique @default(uuid())
+  name       String      @unique
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  videos     Video[]     @relation("VideoCategories")
+  playlists  Playlist[] @relation("PlaylistCategories")
 }
+
+// ------------------ Payments ------------------
+model Payment {
+  id            Int             @id @default(autoincrement())
+  uuid          String          @unique @default(uuid())
+  amount        Decimal
+  currency      String          @default("UZS")
+  paymentMethod PaymentMethod   @default(MANUAL)
+  status        PaymentStatus   @default(PENDING)
+  transactionId String?
+  proofUrl      String?
+  paidAt        DateTime?
+  refundReason  String?
+  createdAt     DateTime        @default(now())
+
+  userId        Int
+  user          User            @relation(fields: [userId], references: [id])
+
+  playlistId    Int
+  playlist      Playlist        @relation(fields: [playlistId], references: [id])
+}
+
+// ------------------ Enrollment ------------------
+model Enrollment {
+  id         Int       @id @default(autoincrement())
+  createdAt  DateTime  @default(now())
+
+  userId     Int
+  user       User      @relation(fields: [userId], references: [id])
+
+  playlistId Int
+  playlist   Playlist @relation(fields: [playlistId], references: [id])
+
+  @@unique([userId, playlistId])
+}
+
+// ------------------ Wishlist ------------------
+model Wishlist {
+  id         Int       @id @default(autoincrement())
+  createdAt  DateTime  @default(now())
+
+  userId     Int
+  user       User      @relation(fields: [userId], references: [id])
+
+  playlistId Int
+  playlist   Playlist @relation(fields: [playlistId], references: [id])
+
+  @@unique([userId, playlistId])
+}
+
+// ------------------ Review ------------------
+model Review {
+  id         Int       @id @default(autoincrement())
+  rating     Int
+  comment    String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  userId     Int
+  user       User      @relation(fields: [userId], references: [id])
+
+  playlistId Int
+  playlist   Playlist @relation(fields: [playlistId], references: [id])
+
+  @@unique([userId, playlistId])
+}
+
