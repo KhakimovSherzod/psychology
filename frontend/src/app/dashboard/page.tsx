@@ -1,7 +1,20 @@
 
+import { cookies } from "next/headers"
 
 export default async function DashboardPage() {
-  
+
+const cookieStore = cookies()
+
+const accessToken = cookieStore.get("accessToken")?.value
+const refreshToken = cookieStore.get("refreshToken")?.value
+
+const playlist = await fetch("http://localhost:3001/api/playlist/user", {
+  method: "GET",
+  headers: {
+    Cookie: `accessToken=${accessToken}; refreshToken=${refreshToken}`
+  }
+})
+  console.log(playlist)
   return (
     <div>
       <h1 className='text-3xl font-bold text-slate-800 mb-6'>Xush kelibsiz!</h1>

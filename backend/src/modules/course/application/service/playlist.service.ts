@@ -25,22 +25,12 @@ export class PlaylistService {
   // users
 async getAllPlaylists(userUUID: string): Promise<PlaylistUserDTO[]> {
   
-    
-  // 1️⃣ Get all playlists
   const playlists = await this.playlistRepository.getCoursePlaylists();
 
-  // 2️⃣ Collect playlist IDs for batch enrollment check
-  const playlistIds = playlists.map(p => p.internalIdValue);
-  const user = await this.userRepository.findByUUID(userUUID)
 
-  // 3️⃣ Fetch enrollments for all playlists for this user
-  const enrollments = await this.enrollmentService.getEnrollments(user.id);
-  const enrollmentMap = new Map(enrollments.map(e => [e.playlistId, e]));
-
-  // 4️⃣ Build DTOs with access info
   return playlists.map(playlist => {
-    const enrollment = enrollmentMap.get(playlist.id);
-    const hasAccess = enrollment ? enrollment.hasAccess() : false;
+    //todo need to check enrollment
+    const hasAccess = true;
 
     return {
       id: playlist.id,
@@ -168,6 +158,8 @@ async getVideosByPlaylistUuidForUser(userUUID: string, playlistUUID: string): Pr
       id: playlist.id,
       title: playlist.titleValue,
       price: playlist.priceValue.amount,
+      //todo logic for this has access here 
+      hasAccess:true,
 
       categories: playlist.categoriesValue,
       ...(playlist.descriptionValue !== undefined && {

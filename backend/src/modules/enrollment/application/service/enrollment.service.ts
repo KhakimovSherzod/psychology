@@ -1,4 +1,4 @@
-import  { Enrollment } from "../../domain/entity/enrollment";
+import   { Enrollment } from "../../domain/entity/enrollment";
 import type { EnrollmentPort } from "../ports/enrollment.port";
 import { v4 as uuidv4 } from 'uuid'
 import type { AdminEnrollmentResponse } from "../DTO/enrollment.dto";
