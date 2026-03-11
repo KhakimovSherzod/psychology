@@ -1,6 +1,6 @@
 // src/modules/course/infrastructure/routes/category.routes.ts
 
-import { CategoryPermission } from '@/shared/enums/CategoryPermission.enum'
+
 import { requirePermission } from '@/shared/middlewares/rbac.middleware'
 import { Router } from 'express'
 import { CategoryController } from '../controllers/category.controller'
@@ -10,28 +10,28 @@ const router = Router()
 const categoryController = new CategoryController()
 
 // GET all categories
-router.get('/', requirePermission(Permission.READ), (req, res) =>
-  categoryController.getAllCategories(req, res)
+router.get('/', requirePermission(Permission.READ), (req, res, next) =>
+  categoryController.getAllCategories(req, res, next)
 )
 
 // GET category by ID
-router.get('/:id', requirePermission(Permission.READ), (req, res) =>
-  categoryController.getCategoryById(req, res)
+router.get('/:id', requirePermission(Permission.READ), (req, res, next) =>
+  categoryController.getCategoryById(req, res, next)
 )
 
 // POST create new category
-router.post('/', requirePermission(Permission.CREATE), (req, res) =>
-  categoryController.createCategory(req, res)
+router.post('/', requirePermission(Permission.CREATE), (req, res, next) =>
+  categoryController.createCategory(req, res, next)
 )
 
 // PATCH update category
-router.patch('/:id', requirePermission(Permission.UPDATE), (req, res) =>
-  categoryController.updateCategory(req, res)
+router.patch('/:id', requirePermission(Permission.UPDATE), (req, res, next) =>
+  categoryController.updateCategory(req, res, next)
 )
 
 // DELETE category
-router.delete('/:id', requirePermission(Permission.DELETE), (req, res) =>
-  categoryController.deleteCategory(req, res)
+router.delete('/:id', requirePermission(Permission.DELETE), (req, res,next) =>
+  categoryController.deleteCategory(req, res,next)
 )
 
 export { router as CategoryRoutes }

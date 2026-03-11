@@ -1,18 +1,15 @@
 import axios from 'axios'
 import crypto from 'crypto'
 import type { Video } from '../../domain/entities/video.entity'
-import type { IVideoRepository } from '../repository/video.repository'
-export interface CreateVideoDto {
-  title: string
-  description?: string
-  playbackUrl: string
-  videoThumbnailUrl?: string
-  playlistId: string
-  order?: number
-  categories?: string[] // array of category UUIDs
-}
+import type { VideoStreamingProvider } from '../../domain/ports/video.stream.provider'
+import type { VideoStatus } from '@prisma/client'
+import type { IVideoRepository } from '../../domain/repository/video.repository'
+import type {  VideoAdminDTO, VideoUserDTO } from '../DTO/video.user.dto'
+
+
+
 export class VideoService {
-  constructor(private VideoRepo: IVideoRepository) {}
+  constructor(private VideoRepo: IVideoRepository, private streaming: VideoStreamingProvider) {}
 
   async generateSignedVideoUploadUrl() {
     const libraryId = process.env.BUNNY_LIBRARY_ID
@@ -81,10 +78,100 @@ export class VideoService {
 
     return `https://vz-${libraryId}.b-cdn.net/${videoId}/thumbnail.jpg`
   }
-  async createVideo(dto: CreateVideoDto): Promise<Video> {
-    return await this.VideoRepo.createVideo(dto)
-  }
-  async getAllVideos() {
+
+
+
+
+  async getAllUserVideos() {
     return await this.VideoRepo.getAllVideos()
   }
+  
+async getAllAdminVideos(options?: {
+  status?: VideoStatus | 'ALL';
+  includeDeleted?: boolean;
+}): Promise<Video[]> {
+  // Default for admin: return all statuses and include deleted
+  const status = options?.status ?? 'ALL';
+  const includeDeleted = options?.includeDeleted ?? true;
+
+  return await this.VideoRepo.getAllVideos({
+    status,
+    includeDeleted,
+  });
+}
+
+
+
+
+
+  async getVideoPlaybackUrl (uuid:string, user_uuid:string){
+    console.log('get video playback url in service')
+    const video = await this.VideoRepo.findByUUID(uuid)
+    console.log("video playback url o%", video)
+
+    //TODO need to update make new infrastructure implementation for bunny and domain ports/interfaces
+    const signed_url = await this.streaming.getPlaybackUrl(video.id)
+    console.log('signed url %s', signed_url)
+    return signed_url
+  }
+async getUserVideoByUUID(uuid: string): Promise<VideoUserDTO> {
+  const video = await this.VideoRepo.findByUUID(uuid)
+
+  return {
+    uuid: video.id,
+    title: video.titleValue,
+    videoThumbnailUrl: video.videoThumbnailUrlValue,
+    order: video.orderValue,
+    isFree: video.isFreeValue,
+    categories: video.categoriesValue.map(category => ({
+      id: category.uuid,
+      name: category.name,
+    })),
+    ...(video.descriptionValue !== undefined && {
+      description: video.descriptionValue,
+    }),
+  }
+}
+
+async getAdminVideoByUUID(uuid: string): Promise<VideoAdminDTO> {
+  const video = await this.VideoRepo.findByUUID(uuid)
+  return {
+    uuid: video.id,
+    provider: video.providerValue,
+    externalVideoId: video.externalId,
+    title: video.titleValue,
+    videoThumbnailUrl: video.videoThumbnailUrlValue,
+    status: video.statusValue,
+    order: video.orderValue,
+    isFree: video.isFreeValue,
+    categories: video.categoriesValue.map(category => ({
+      id: category.uuid,
+      name: category.name,
+    })),
+    ...(video.createdAtValue !== undefined && {
+      createdAt: video.createdAtValue,
+    }),
+    ...(video.descriptionValue !== undefined && {
+      description: video.descriptionValue,
+    }),
+
+
+    ...(video.updatedAtValue !== undefined && {
+      updatedAt: video.updatedAtValue,
+    }),
+
+    ...(video.deletedAtValue !== undefined && {
+      deletedAt: video.deletedAtValue,
+    }),
+
+    ...(video.publishedAtValue !== undefined && {
+      publishedAt: video.publishedAtValue,
+    }),
+
+    ...(video.archivedAtValue !== undefined && {
+      archivedAt: video.archivedAtValue,
+    }),
+  }
+}
+
 }

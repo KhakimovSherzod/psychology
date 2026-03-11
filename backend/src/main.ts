@@ -3,14 +3,20 @@ import { PrismaClient } from '@prisma/client'
 import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import express, { type Request, type Response } from 'express'
+import { createAuthContainer } from './modules/auth/container/createAuthContainer'
 import { publicAuthRoutes } from './modules/auth/infrastructure/http/routes/auth.routes'
 import { protectedPinRoutes } from './modules/auth/infrastructure/http/routes/pin.routes'
 import { CategoryRoutes } from './modules/course/infrastructure/http/routes/category.route'
-import { PlaylistRoutes } from './modules/course/infrastructure/http/routes/playlist.route'
-import { videoRoutes } from './modules/course/infrastructure/http/routes/video.routes'
+import { UserPlaylistRoutes } from './modules/course/infrastructure/http/routes/user.playlist.route'
+import { userVideoRoutes } from './modules/course/infrastructure/http/routes/user.video.routes'
 import { protectedUserRoutes } from './modules/user/infrastructure/http/routes/user.route'
-import { authMiddleware } from './shared/middlewares/auth.middleware'
-
+import { errorMiddleware } from './shared/middlewares/error.middleware'
+import { requestLogger } from './shared/middlewares/log.middleware'
+import { AdminPlaylistRoutes } from './modules/course/infrastructure/http/routes/admin.playlist.route'
+import { adminVideoRoutes } from './modules/course/infrastructure/http/routes/admin.video.routes'
+import { EnrollmentRouter } from './modules/enrollment/infrastructure/http/router/enrollment.router'
+import { orderRouter } from './modules/order/infrastructure/http/routes/order.route'
+import {cartRouter} from './modules/cart/infrastructure/http/router/cart.router'
 const app = express()
 const port = process.env.PORT
 
@@ -32,19 +38,24 @@ app.use(cookieParser())
 app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'OK', message: 'Server is running' })
 })
-
+app.use(requestLogger)
 app.use('/public/', publicAuthRoutes)
 
-
 //   ----------------------- MIDDLEWARE PROTECTED ROUTES -----------------------
-app.use(authMiddleware)
-app.use('/api/playlist', PlaylistRoutes)
+
+const { authMiddleware } = createAuthContainer()
+app.use(authMiddleware.handle)
+app.use('/api/playlist/admin', AdminPlaylistRoutes)
+app.use('/api/playlist/user', UserPlaylistRoutes)
 app.use('/api/category', CategoryRoutes)
 app.use('/api/users', protectedUserRoutes)
-app.use('/api/videos', videoRoutes)
+app.use('/api/videos/admin', adminVideoRoutes)
+app.use('/api/videos/user', userVideoRoutes)
 app.use('/api/auth/pin', protectedPinRoutes)
-
-// app.use(errorMiddleware)
+app.use('/api/enrollment', EnrollmentRouter)
+app.use('/api/order', orderRouter)
+app.use('/api/cart', cartRouter)
+app.use(errorMiddleware)
 
 // Start server
 const server = app.listen(port, () => {

@@ -1,14 +1,12 @@
 // src/modules/course/infrastructure/prisma/repository/category.prisma.repository.ts
 
-import type { ICategoryRepository } from '@/modules/course/application/repository/category.repository'
 import { Category } from '@/modules/course/domain/entities/category.entity'
+import type { ICategoryRepository } from '@/modules/course/domain/repository/category.repository'
 import { prisma } from '@/shared/client'
-import type { Category as PrismaCategory } from '@prisma/client'
 
 export class PrismaCategoryRepository implements ICategoryRepository {
-  private toDomain(prismaCategory: PrismaCategory): Category {
+  private toDomain(prismaCategory: any): Category {
     return new Category(
-      prismaCategory.id,
       prismaCategory.uuid,
       prismaCategory.name,
       prismaCategory.createdAt,
@@ -24,69 +22,68 @@ export class PrismaCategoryRepository implements ICategoryRepository {
     return categories.map(category => this.toDomain(category))
   }
 
-  async findById(id: number): Promise<Category | null> {
+  async findByUUID(id: string): Promise<Category> {
     const category = await prisma.category.findUnique({
-      where: { id },
+      where: { uuid: id },
     })
 
-    return category ? this.toDomain(category) : null
+    return this.toDomain(category)
   }
 
-  async findByName(name: string): Promise<Category | null> {
+  async findByIds(ids: string[]): Promise<Category[]> {
+    const categories = await prisma.category.findMany({
+      where: { uuid: { in: ids } },
+    })
+
+    return categories.map(category => this.toDomain(category))
+  }
+
+  async findByName(name: string): Promise<Category> {
     const category = await prisma.category.findUnique({
       where: { name },
     })
 
-    return category ? this.toDomain(category) : null
+    return this.toDomain(category)
   }
 
   async create(category: Category): Promise<Category> {
     const newCategory = await prisma.category.create({
       data: {
-        name: category.name,
+        uuid: category.id,
+        name: category.nameValue,
+        createdAt: category.createdAtValue,
+        updatedAt: category.updatedAtValue
       },
     })
 
     return this.toDomain(newCategory)
   }
 
-  async update(id: number, category: Category): Promise<Category | null> {
-    try {
+  async update(id: string, category: Category): Promise<Category> {
+
+    
       const updatedCategory = await prisma.category.update({
-        where: { id },
+        where: { uuid: id },
         data: {
-          name: category.name,
+          name: category.nameValue,
         },
       })
 
       return this.toDomain(updatedCategory)
-    } catch (error) {
-      // Handle case where category doesn't exist
-      if (error instanceof Error && error.message.includes('Record to update not found')) {
-        return null
-      }
-      throw error
-    }
+
   }
 
-  async delete(id: number): Promise<boolean> {
-    try {
+  async delete(id: string): Promise<boolean> {
+
       await prisma.category.delete({
-        where: { id },
+        where: { uuid: id },
       })
       return true
-    } catch (error) {
-      // Handle case where category doesn't exist
-      if (error instanceof Error && error.message.includes('Record to delete does not exist')) {
-        return false
-      }
-      throw error
-    }
   }
 
-  async exists(id: number): Promise<boolean> {
+  async exists(id: string): Promise<boolean> {
     const count = await prisma.category.count({
-      where: { id },
+      where: { uuid: id },
     })
 
     return count > 0

@@ -1,13 +1,17 @@
+
+
 import { Permission } from '@/shared/enums/UserPermission.enum'
 import { requirePermission } from '@/shared/middlewares/rbac.middleware'
 import { Router } from 'express'
 import { UserController } from '../controllers/user.controller'
+import { createUserContainer } from '@/modules/user/container/CreateUserContainer';
 
 const router = Router()
-const userController = new UserController()
+const {userService, createUserByAdminService, updateUserService} = createUserContainer()
+const userController = new UserController(userService, createUserByAdminService,updateUserService)
 //! -------------------   user routes  -------------------
 
-router.get('/me', requirePermission(Permission.WRITE), (req, res) => userController.me(req, res)) //* Get current user
+router.get('/me', requirePermission(Permission.WRITE), (req, res, next) => userController.me(req, res, next)) //* Get current user
 router.patch('/update', requirePermission(Permission.WRITE), (req, res, next) =>
   userController.update(req, res, next)
 ) //* Update user details
@@ -31,6 +35,18 @@ router.patch('/:uuid/status', requirePermission(Permission.MANAGE), (req, res, n
 router.patch('/:uuid/role', requirePermission(Permission.MANAGE), (req, res, next) =>
   userController.updateUserRole(req, res, next)
 )
-router.post('/', requirePermission(Permission.CREATE),(req,res,next)=> userController.createUser(req,res,next))
+//* create new user by admin
+router.post('/', requirePermission(Permission.CREATE), (req, res, next) =>
+  userController.createUser(req, res, next)
+)
 
+//* restore deleted account by admin
+router.post('/:uuid/restore', requirePermission(Permission.MANAGE), (req, res, next) =>
+  userController.restoreUser(req, res, next)
+)
+router.delete('/:uuid', (req, res, next) => userController.deleteUser(req, res, next))
+
+router.patch('/:uuid', requirePermission(Permission.MANAGE), (req, res, next) =>
+  userController.updateUser(req, res, next)
+)
 export { router as protectedUserRoutes }

@@ -16,10 +16,6 @@ export interface IUserRepository {
   delete(uuid: string): Promise<void>
 
   // Business operations
-  verifyPin(deviceId: string, pin: string): Promise<boolean>
-  changePin(uuid: string, newPinHash: string): Promise<void>
-  updateDeviceId(uuid: string, deviceId: string): Promise<User>
-  updateLastLogin(uuid: string): Promise<void>
 
   // Query operations
   findAll(includeDeleted?: boolean): Promise<User[]>
@@ -27,7 +23,4 @@ export interface IUserRepository {
   findByStatus(status: UserStatus): Promise<User[]>
   count(includeDeleted?: boolean): Promise<number>
 
-  // Existence checks
-  existsByPhone(phone: string): Promise<boolean>
-  existsByUuid(uuid: string): Promise<boolean>
 }

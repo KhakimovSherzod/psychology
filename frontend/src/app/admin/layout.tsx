@@ -12,8 +12,7 @@ type DashboardLayoutProps = {
 
 export default async function DashboardLayout({ children }: DashboardLayoutProps) {
   const admin = await getCurrentUser()
-  console.log('Current Admin:', admin)
-  if (admin.role === 'ADMIN')
+  if (admin.role === 'ADMIN' || admin.role === 'OWNER')
     return <DashboardAdminLayout admin={admin}>{children}</DashboardAdminLayout>
   return (
     <div className='text-4xl text-center mt-48 text-red-600 font-bold'>

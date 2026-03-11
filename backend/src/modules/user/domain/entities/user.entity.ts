@@ -3,119 +3,141 @@ import { UserStatus } from '@/shared/enums/UserStatus.enum'
 import { PhoneNumber } from '../value-objects/PhoneNumber'
 import { UserName } from '../value-objects/UserName'
 import { UserStatusVO } from '../value-objects/UserStatusVO'
+import { Device } from './device.entity'
 
 export class User {
-  private readonly _uuid: string
-  private _name: UserName
-  private _role: UserRole
-  private _status: UserStatusVO
-  private _phone: PhoneNumber
-  private _pinHash: string
-  private _profileImage: string | undefined
-  private _deviceIds: string[]
-  private readonly _createdAt: Date
-  private _lastLogin: Date | undefined
-  private _deletedAt: Date | undefined
+  private devices: Device[] = []
 
-  constructor(
+  private constructor(
+    private readonly uuid: string,
+    private name: UserName,
+    private role: UserRole,
+    private status: UserStatusVO,
+    private phone: PhoneNumber,
+    private pinHash: string,
+    private internalId?:number,
+    devices?: Device[], // Devices are optional now
+    private profileImage: string | null = null, // profileImage is nullable
+    private readonly createdAt: Date = new Date(),
+    private lastLogin: Date | null = null, // lastLogin can be null
+    private deletedAt: Date | null = null  // deletedAt can be null
+    
+  ) {
+    if (devices) this.devices = devices
+  }
+
+  // ===== Factory =====
+  static create(
     uuid: string,
     name: UserName,
-    role: UserRole,
-    status: UserStatusVO,
     phone: PhoneNumber,
     pinHash: string,
-    deviceIds: string[] = [],
-    profileImage?: string,
-    createdAt: Date = new Date(),
-    lastLogin?: Date,
-    deletedAt?: Date
-  ) {
-    this._uuid = uuid
-    this._name = name
-    this._role = role
-    this._status = status
-    this._phone = phone
-    this._pinHash = pinHash
-    this._deviceIds = deviceIds
-    this._profileImage = profileImage
-    this._createdAt = createdAt
-    this._lastLogin = lastLogin
-    this._deletedAt = deletedAt
+  ): User {
+    return new User(
+      uuid,
+      name,
+      UserRole.USER,
+      new UserStatusVO(UserStatus.ACTIVE),
+      phone,
+      pinHash
+    )
+  }
+
+  static reconstruct(
+    params:{
+      uuid: string,
+      name: UserName,
+      role: UserRole,
+      status: UserStatusVO,
+      phone: PhoneNumber,
+      pinHash: string,
+      devices?: Device[], // Devices can be undefined
+      profileImage: string | null, // Profile image can be null
+      createdAt: Date, // Optional createdAt
+      lastLogin: Date | null, // Optional lastLogin
+      deletedAt: Date | null // Optional deletedAt
+      internalId?:number,
+    }
+  ): User {
+    return new User(
+      params.uuid,
+      params.name,
+      params.role,
+      params.status,
+      params.phone,
+      params.pinHash,
+      params.internalId,
+      params.devices,
+      params.profileImage,
+      params.createdAt,
+      params.lastLogin,
+      params.deletedAt
+    )
+  }
+
+  // ===== Device Management =====
+
+  // Add a device
+  addDevice(device: Device) {
+    const exists = this.devices.find(d => d.uuidValue === device.uuidValue)
+    if (exists) throw new Error('Device already registered')
+    this.devices.push(device)
+  }
+
+  // Mark device as used
+  markDeviceUsed(deviceUuid: string) {
+    const device = this.devices.find(d => d.uuidValue === deviceUuid)
+    if (!device) throw new Error('Device not found')
+    device.markUsed()
+  }
+
+  // Soft delete a device
+  removeDevice(deviceUuid: string) {
+    const device = this.devices.find(d => d.uuidValue === deviceUuid)
+    if (!device) throw new Error('Device not found')
+    device.softDelete()
+  }
+
+  // Get all active devices
+  getActiveDevices(): Device[] {
+    return this.devices.filter(d => !d.isDeleted())
   }
 
   // ===== Getters =====
+  get id(): string { return this.uuid }
+  get nameValue(): string { return this.name.value }
+  get roleValue(): UserRole { return this.role }
+  get statusValue(): UserStatus { return this.status.value }
+  get phoneValue(): string { return this.phone.value }
+  get pinHashValue(): string { return this.pinHash }
+ get internalIdValue(): number {
+  if (!this.internalId) {
+    throw new Error('User is not persisted yet. Internal ID not assigned.')
+  }
+  return this.internalId
+}
 
-  get uuid(): string {
-    return this._uuid
-  }
-  get name(): string {
-    return this._name.value
-  }
-  get role(): UserRole {
-    return this._role
-  }
-  get status(): UserStatus {
-    return this._status.value
-  }
-  get phone(): string {
-    return this._phone.value
-  }
-  get pinHash(): string {
-    return this._pinHash
-  }
-  get profileImage(): string | undefined {
-    return this._profileImage
-  }
-  get deviceIds(): string[] {
-    return [...this._deviceIds]
-  }
-  get createdAt(): Date {
-    return this._createdAt
-  }
-  get lastLogin(): Date | undefined {
-    return this._lastLogin
-  }
-  get deletedAt(): Date | undefined {
-    return this._deletedAt
-  }
+  get profileImageValue(): string | null { return this.profileImage }
+  get createdAtValue(): Date { return this.createdAt }
+  get lastLoginValue(): Date | null { return this.lastLogin }
+  get deletedAtValue(): Date | null { return this.deletedAt }
+  getDevices(): readonly Device[] { return this.devices }
 
-  get isActive(): boolean {
-    return this._status.isActive
-  }
-  get isDeleted(): boolean {
-    return this._status.isDeleted || !!this._deletedAt
-  }
+  // ===== Derived state =====
+  get isActive(): boolean { return this.status.isActive }
+  get isDeleted(): boolean { return !!this.deletedAt }
 
-  updateName(name: UserName) {
-    this._name = name
-  }
-  setRole(role: UserRole) {
-    this._role = role
-  }
+  // ===== Behavior =====
+  updateName(name: UserName) { this.name = name }
+  setRole(role: UserRole) { this.role = role }
   setStatus(status: UserStatusVO) {
     if (this.isDeleted) throw new Error('Cannot change status of deleted user')
-    this._status = status
+    this.status = status
   }
-  updatePhone(phone: PhoneNumber) {
-    this._phone = phone
-  }
-  updatePinHash(hash: string) {
-    this._pinHash = hash
-  }
-  updateProfileImage(url: string) {
-    this._profileImage = url
-  }
-  addDevice(deviceId: string) {
-    if (!this._deviceIds.includes(deviceId)) this._deviceIds.push(deviceId)
-  }
-  removeDevice(deviceId: string) {
-    this._deviceIds = this._deviceIds.filter(d => d !== deviceId)
-  }
-  updateLastLogin(date: Date = new Date()) {
-    this._lastLogin = date
-  }
-  softDelete() {
-    this._deletedAt = new Date()
-    this._status = new UserStatusVO(UserStatus.DELETED)
-  }
+  updatePhone(phone: PhoneNumber) { this.phone = phone }
+  changePinHash(hash: string) { this.pinHash = hash }
+  updateProfileImage(url: string | null) { this.profileImage = url } // Update with null or string
+  updateLastLogin(date: Date = new Date()) { this.lastLogin = date }
+  softDelete() { this.deletedAt = new Date() }
+  restoreUser() { if (this.isDeleted) this.deletedAt = null }
 }

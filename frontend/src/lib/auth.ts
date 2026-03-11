@@ -6,12 +6,12 @@ export const getCurrentUser = cache(async () => {
   try {
     const cookieStore = await cookies()
 
-    const accessToken = cookieStore.get('access_token')?.value
-    const refreshToken = cookieStore.get('refresh_token')?.value
+    const accessToken = cookieStore.get('accessToken')?.value
+    const refreshToken = cookieStore.get('refreshToken')?.value
 
     const cookieHeader = [
-      accessToken ? `access_token=${accessToken}` : '',
-      refreshToken ? `refresh_token=${refreshToken}` : '',
+      accessToken ? `accessToken=${accessToken}` : '',
+      refreshToken ? `refreshToken=${refreshToken}` : '',
     ]
       .filter(Boolean)
       .join('; ')
@@ -23,8 +23,7 @@ export const getCurrentUser = cache(async () => {
       },
       cache: 'no-store',
     })
-    console.log('Fetch user response status:', res)
-    const user = (await res.json())?.user
+    const user = await res.json()
     if (user) {
       return user
     } else {

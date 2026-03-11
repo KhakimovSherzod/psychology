@@ -5,14 +5,15 @@ export type User = {
 }
 // types/user.ts
 export interface UserDTO {
-  uuid: string
+  id: string
   name: string
   phone: string
-  role: 'USER' | 'ADMIN' | 'OWNER'
-  status: 'PENDING' | 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'BANNED' | 'DELETED'
-  profileImage?: string
-  createdAt: string
-  lastLogin?: string
+  role: UserRole
+  status: string
+  profileImage: string | null
+  createdAt: Date
+  lastLogin: Date | null
+  deletedAt: Date | null
   // TODO: Implement later when backend is ready
   enrollments?: any[]
   payments?: any[]

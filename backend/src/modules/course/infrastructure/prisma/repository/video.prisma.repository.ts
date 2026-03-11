@@ -1,135 +1,158 @@
-import type { IVideoRepository } from '@/modules/course/application/repository/video.repository'
-import type { CreateVideoDto } from '@/modules/course/application/service/video.service'
 import { Video } from '@/modules/course/domain/entities/video.entity'
+import type { IVideoRepository } from '@/modules/course/domain/repository/video.repository'
 import { prisma } from '@/shared/client'
+import { Prisma, VideoProvider, VideoStatus } from '@prisma/client'
 
 export class VideoPrismaRepository implements IVideoRepository {
-  // -------------------- CREATE --------------------
-  async createVideo(data: CreateVideoDto): Promise<Video> {
-    const connectCategories = data.categories?.map(uuid => ({ uuid })) || []
-
-    const video = await prisma.video.create({
-      data: {
-        title: data.title,
-        description: data.description ?? null,
-        playbackUrl: data.playbackUrl,
-        videoThumbnailUrl: data.videoThumbnailUrl ?? null,
-        playlist: { connect: { uuid: data.playlistId } },
-        categories: { connect: connectCategories },
-      },
-      include: {
-        playlist: { select: { uuid: true } },
-        categories: { select: { uuid: true } },
-      },
+  /* ---------------------------------------------
+   * Helpers
+   * --------------------------------------------- */
+  private async getPlaylistIdByUUID(uuid: string): Promise<number> {
+    const playlist = await prisma.playlist.findUnique({
+      where: { uuid },
+      select: { id: true },
     })
 
-    return new Video(
-      video.uuid,
-      video.title,
-      video.playbackUrl,
-      video.playlist.uuid,
-      video.description ?? undefined,
-      video.videoThumbnailUrl ?? undefined,
-      video.order ?? undefined,
-      video.categories?.map(cat => cat.uuid)
-    )
-  }
-
-  // -------------------- GET ALL --------------------
-  async getAllVideos(): Promise<Video[]> {
-    const videos = await prisma.video.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: {
-        playlist: { select: { uuid: true } },
-        categories: { select: { uuid: true } },
-      },
-    })
-
-    return videos.map(
-      video =>
-        new Video(
-          video.uuid,
-          video.title,
-          video.playbackUrl,
-          video.playlist.uuid,
-          video.description ?? undefined,
-          video.videoThumbnailUrl ?? undefined,
-          video.order ?? undefined,
-          video.categories?.map(cat => cat.uuid)
-        )
-    )
-  }
-
-  // -------------------- UPSERT --------------------
-  async upsertVideo(video: Video): Promise<Video> {
-    const connectCategories = video.categories?.map(uuid => ({ uuid })) || []
-
-    // Prepare data object (omit undefined)
-    const updateData: Record<string, any> = {}
-    if (video.title !== undefined) updateData.title = video.title
-    if (video.description !== undefined) updateData.description = video.description
-    if (video.playbackUrl !== undefined) updateData.playbackUrl = video.playbackUrl
-    if (video.videoThumbnailUrl !== undefined)
-      updateData.videoThumbnailUrl = video.videoThumbnailUrl
-    if (video.playlistId !== undefined)
-      updateData.playlist = { connect: { uuid: video.playlistId } }
-    if (video.order !== undefined) updateData.order = video.order
-    if (connectCategories.length > 0) updateData.categories = { set: connectCategories }
-
-    // Check if video exists
-    const existing = await prisma.video.findUnique({
-      where: { uuid: video.uuid },
-      select: { uuid: true },
-    })
-
-    if (existing) {
-      const updated = await prisma.video.update({
-        where: { uuid: video.uuid },
-        data: updateData,
-        include: {
-          playlist: { select: { uuid: true } },
-          categories: { select: { uuid: true, name:true } },
-        },
-      })
-
-      return new Video(
-        updated.uuid,
-        updated.title,
-        updated.playbackUrl,
-        updated.playlist.uuid,
-        updated.description ?? undefined,
-        updated.videoThumbnailUrl ?? undefined,
-        updated.order ?? undefined,
-        updated.categories?.map(cat => ({ uuid: cat.uuid, name: cat.name }))
-      )
+    if (!playlist) {
+      throw new Error(`Playlist ${uuid} not found`)
     }
 
-    // Create new video
-    const created = await prisma.video.create({
-      data: {
-        uuid: video.uuid,
-        title: video.title,
-        description: video.description ?? null,
-        playbackUrl: video.playbackUrl,
-        videoThumbnailUrl: video.videoThumbnailUrl ?? null,
-        playlist: { connect: { uuid: video.playlistId } },
-        categories: { connect: connectCategories },
-      },
+    return playlist.id
+  }
+
+  /* ---------------------------------------------
+   * Mapper: Prisma → Domain
+   * --------------------------------------------- */
+  private toDomain(record: any): Video {
+    return Video.reconstruct({
+      uuid: record.uuid,
+      provider: record.provider as VideoProvider,
+      externalVideoId: record.externalVideoId,
+      title: record.title,
+      videoThumbnailUrl: record.videoThumbnailUrl,
+      status: record.status as VideoStatus,
+      order: record.order,
+      categories:
+        record.categories?.map((c: any) => ({
+          uuid: c.uuid,
+          name: c.name,
+          createdAt: c.createdAt,
+          updatedAt: c.updatedAt,
+          deletedAt: c.deletedAt ?? undefined,
+        })) ?? [],
+      createdAt: record.createdAt,
+      description: record.description ?? undefined, // convert null -> undefined
+      isFree: record.isFree ?? false,
+      updatedAt: record.updatedAt ?? undefined,
+      deletedAt: record.deletedAt ?? undefined,
+      publishedAt: record.publishedAt ?? undefined,
+      archivedAt: record.archivedAt ?? undefined,
+    })
+  }
+
+  /* ---------------------------------------------
+   * CREATE
+   * --------------------------------------------- */
+  async createVideo(video: Video, playlistId: string): Promise<Video> {
+    const categories =
+      video.categoriesValue.length > 0
+        ? { connect: video.categoriesValue.map(c => ({ uuid: c.uuid })) }
+        : undefined
+
+    const data: Prisma.videoCreateInput = {
+      uuid: video.id,
+      provider: video.providerValue,
+      externalVideoId: video.externalId,
+      title: video.titleValue,
+      videoThumbnailUrl: video.videoThumbnailUrlValue,
+      status: video.statusValue,
+      order: video.orderValue,
+      playlist: { connect: { uuid: playlistId } },
+      isFree: video.isFreeValue,
+      description: video.descriptionValue ?? null,
+      ...(categories ? { categories } : {}),
+    }
+
+    const record = await prisma.video.create({
+      data,
       include: {
         playlist: { select: { uuid: true } },
-        categories: { select: { uuid: true } },
+        categories: { select: { uuid: true, name: true } },
       },
     })
 
-    return new Video(
-      created.uuid,
-      created.title,
-      created.playbackUrl,
-      created.playlist.uuid,
-      created.description ?? undefined,
-      created.videoThumbnailUrl ?? undefined,
-      created.order ?? undefined,
-      created.categories?.map(cat => cat.uuid)
-    )
+    return this.toDomain(record)
   }
+
+  /* ---------------------------------------------
+   * GET ALL
+   * --------------------------------------------- */
+async getAllVideos(options?: {
+  status?: VideoStatus | 'ALL'
+  includeDeleted?: boolean
+}): Promise<Video[]> {
+  const {
+    status = VideoStatus.PUBLISHED,
+    includeDeleted = false,
+  } = options ?? {}
+
+  const where: Prisma.videoWhereInput = {}
+  if (status !== 'ALL') where.status = status
+  if (!includeDeleted) where.deletedAt = null
+
+  const records = await prisma.video.findMany({
+    where,
+    orderBy: { order: 'asc' },
+    include: {
+      playlist: { select: { uuid: true } },
+      categories: { select: { uuid: true, name: true } },
+    },
+  })
+
+return records.map(r =>
+  Video.reconstruct({
+    uuid: r.uuid,
+    provider: r.provider as VideoProvider,
+    externalVideoId: r.externalVideoId,
+    title: r.title,
+    videoThumbnailUrl: r.videoThumbnailUrl,
+    status: r.status as VideoStatus,
+    order: r.order ?? 0,
+    isFree: r.isFree ?? false,
+    categories: r.categories?.map(c => ({ uuid: c.uuid, name: c.name })) ?? [],
+    internalId: r.id,
+    ...(r.createdAt && { createdAt: r.createdAt }),
+    ...(r.description && { description: r.description }),
+    ...(r.updatedAt && { updatedAt: r.updatedAt }),
+    ...(r.deletedAt && { deletedAt: r.deletedAt }),
+    ...(r.publishedAt && { publishedAt: r.publishedAt }),
+    ...(r.archivedAt && { archivedAt: r.archivedAt }),
+  })
+)
+
+}
+
+
+
+  /* ---------------------------------------------
+   * FIND BY UUID
+   * --------------------------------------------- */
+  async findByUUID(uuid: string): Promise<Video> {
+    const record = await prisma.video.findUnique({
+      where: { uuid },
+      include: {
+        playlist: { select: { uuid: true } },
+        categories: { select: { uuid: true, name: true } },
+      },
+    })
+
+    if (!record) {
+      throw new Error(`Video ${uuid} not found`)
+    }
+
+    return this.toDomain(record)
+  }
+
+
+
 }

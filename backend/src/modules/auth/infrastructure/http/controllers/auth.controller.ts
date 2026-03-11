@@ -1,95 +1,124 @@
 // infrastructure/http/controllers/user.controller.ts
 
-import { generateAccessToken, generateRefreshToken } from '@/lib/generate-jwt'
-import { LoginUserService } from '@/modules/auth/application/service/login-user.service'
-import { RegisterUserService } from '@/modules/auth/application/service/register-user.service'
-import { PrismaUserRepository } from '@/modules/user/infrastructure/prisma/repositories/user.prisma.repository'
-import { logger } from '@/utils/logger'
+import type { LoginUserService } from '@/modules/auth/application/service/login-user.service'
+import type { RegisterUserService } from '@/modules/auth/application/service/register-user.service'
+
 import type { NextFunction, Request, Response } from 'express'
 import { loginSchema } from '../validator/login.validator'
 import { registerCredentialsSchema } from '../validator/register.credentials.validator'
 
 export class AuthController {
-  private userRepo = new PrismaUserRepository()
-  private registerService = new RegisterUserService(this.userRepo)
-  private loginService = new LoginUserService(this.userRepo)
+  constructor(
+    private readonly loginService: LoginUserService,
+    private readonly registerService: RegisterUserService
+  ) {}
 
-  async register(req: Request, res: Response) {
+  async register(req: Request, res: Response, next: NextFunction) {
     try {
-      const { name, phone, pin, deviceId } = registerCredentialsSchema.parse(req.body)
+      const { name, phone, pin, deviceId, deviceName, deviceType, os, browser, ipAddress } =
+        registerCredentialsSchema.parse(req.body)
 
-      // Call service to create user and generate tokens
-      const { createdUser } = await this.registerService.execute({
+      const registrationData = {
         name,
         phone,
         pin,
         deviceId,
-      })
-
-      const accessToken = await generateAccessToken({
-        uuid: createdUser.uuid,
-        role: createdUser.role || 'USER',
-        res,
-      })
-
-      const refreshToken = await generateRefreshToken({ uuid: createdUser.uuid, res })
-
-      if (accessToken && refreshToken) {
-        console.log(
-          'access token set successfully',
-          accessToken,
-          'refresh token was set successfully',
-          refreshToken
-        )
-      } else {
-        throw new Error('tokens were not set successfully')
+        deviceName,
+        deviceType,
+        os,
+        browser,
+        ipAddress,
       }
 
-      return res.status(201).json({
-        createdUser,
-        message: 'User registered successfully',
-      })
+      // Call the service to create user and generate tokens
+      const result = await this.registerService.execute(registrationData)
+
+      // Set the access and refresh tokens in cookies
+      res
+        .cookie('accessToken', result.accessToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+          maxAge: 15 * 60 * 1000, // 15 minutes
+          domain: process.env.NODE_ENV === 'production' ? 'yourdomain.com' : 'localhost',
+          path: '/',
+        })
+        .cookie('refreshToken', result.refreshToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+          domain: process.env.NODE_ENV === 'production' ? 'yourdomain.com' : 'localhost',
+          path: '/',
+        })
+        .cookie('deviceToken', result.deviceToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+          domain: process.env.NODE_ENV === 'production' ? 'yourdomain.com' : 'localhost',
+          path: '/',
+        })
+
+      res.status(201).end()
     } catch (err) {
-      return res.status(400).json({ message: err ?? 'User registration failed' })
+      return next(err)
     }
   }
 
   async login(req: Request, res: Response, next: NextFunction) {
     try {
-      const { deviceId, pin, phone } = loginSchema.parse(req.body)
+      const { deviceId, pin, phone, deviceName, deviceType, os, browser, ipAddress, deviceToken } =
+        loginSchema.parse(req.body)
 
-      logger.info('Filtered login credentials: %o', { deviceId, pin, phone })
-
-      const user = await this.loginService.login(
-        deviceId,
-        pin,
-        phone
-      )
-      logger.info('Login request processed for user:%s', user.uuid)
-
-      // generate tokens
-      const accessToken = await generateAccessToken({
-        uuid: user.uuid,
-        role: user.role,
-        res,
-      })
-
-      const refreshToken = await generateRefreshToken({ uuid: user.uuid, res })
-
-      if (!accessToken || !refreshToken) {
-        throw new Error('Token generation failed')
+      const deviceInfo = {
+        deviceName,
+        deviceType,
+        os,
+        browser,
+        ipAddress,
+        deviceToken,
       }
-      console.log(
-        'access token set successfully',
-        accessToken,
-        'refresh token was set successfully',
-        refreshToken
-      )
-      return res.status(200).json({
-        message: 'User logged in successfully',
-      })
+      console.log('Parsed deviceInfo:', deviceInfo)
+      console.log('deviceId:%s, pin:%s, phone:%s', deviceId, pin, phone)
+      // Ensure that deviceInfo is passed as an object
+      const result = await this.loginService.login(deviceId, pin, phone, deviceInfo)
+
+      // Set the access and refresh tokens in cookies
+      res
+        .cookie('accessToken', result.accessToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+          maxAge: 15 * 60 * 1000, // 15 minutes
+          domain: process.env.NODE_ENV === 'production' ? 'yourdomain.com' : 'localhost',
+          path: '/',
+        })
+        .cookie('refreshToken', result.refreshToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+          domain: process.env.NODE_ENV === 'production' ? 'yourdomain.com' : 'localhost',
+          path: '/',
+        })
+
+      // Conditionally set deviceToken cookie only if it exists
+      if (result.deviceToken) {
+        res.cookie('deviceToken', result.deviceToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+          domain: process.env.NODE_ENV === 'production' ? 'yourdomain.com' : 'localhost',
+          path: '/',
+        });
+      }
+
+      // Respond with a 201 status code to indicate successful login
+      res.status(201).end()
     } catch (err) {
-      logger.error('Login error:', err)
+      // Pass errors to the next middleware (error handler)
       next(err)
     }
   }

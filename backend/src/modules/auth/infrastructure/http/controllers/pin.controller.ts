@@ -1,62 +1,39 @@
-// infrastructure/http/controllers/user.controller.ts
 
-import { PinService } from '@/modules/auth/application/service/pin-user.service'
-import { PrismaUserRepository } from '@/modules/user/infrastructure/prisma/repositories/user.prisma.repository'
+
+import {  PinUserService } from '@/modules/auth/application/service/pin-user.service'
 import type { NextFunction, Request, Response } from 'express'
-import { ResetPinPhoneSchema } from '../validator/reset.validator'
-import { logger } from '@/utils/logger'
+import { verifyPinSchema } from '../validator/verify.pin.validator';
+import { PinValidatorSchema } from '../validator/pin.validator';
 
 export class PinController {
-  private userRepo = new PrismaUserRepository()
-  private pinService = new PinService(this.userRepo)
+constructor(private readonly pinUserService:PinUserService){}
 
-  async verifyPin(req: Request, res: Response): Promise<Response> {
+  async verifyPin(req: Request, res: Response, next:NextFunction) {
     try {
-      const { deviceId,phone, pin } = req.body
+      const { deviceId, pin } = verifyPinSchema.parse(req.body)
 
-      if (!deviceId) {
-        return res.status(400).json({ message: 'Device ID not found' })
-      }
+      const isValid = await this.pinUserService.verifyPin(deviceId, pin)
 
-      if (!pin) {
-        return res.status(400).json({ message: 'PIN not provided' })
-      }
-
-      const isValid = await this.pinService.verifyPin(deviceId, pin)
-
-      return res.status(200).json({ isValid })
-    } catch (err: any) {
-      console.error('Error occurred while verifying PIN:', err)
-      return res.status(500).json({ message: 'Internal Server Error' })
+       res.status(200).json({ isValid })
+    } catch (err) {
+       next(err)
     }
   }
 
-  async changePin(req: Request, res: Response): Promise<Response> {
+  async changePin(req: Request, res: Response, next:NextFunction) {
     try {
       const uuid = req.user?.sub
-      const { newPin } = req.body
+      const newPin = PinValidatorSchema.parse(req.body)
 
       if (!uuid) {
         return res.status(400).json({ message: 'User UUID not found' })
       }
 
-      if (!newPin) {
-        return res.status(400).json({ message: 'New PIN not provided' })
-      }
+      await this.pinUserService.changePin(uuid, newPin)
 
-      const result = await this.pinService.changePin(uuid, newPin)
-
-      if (result.status !== 200) {
-        return res.status(result.status).json({ message: result.message })
-      }
-
-      return res.status(200).json({ message: result.message })
-    } catch (err: any) {
-      console.error('Error occurred while changing PIN:', err)
-      if (err?.status && err?.message) {
-        return res.status(err.status).json({ message: err.message })
-      }
-      return res.status(500).json({ message: 'Internal Server Error' })
+      res.status(200).end()
+    } catch (err) {
+      next(err)
     }
   }
 

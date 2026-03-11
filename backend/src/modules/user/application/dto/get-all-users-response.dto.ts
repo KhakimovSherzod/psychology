@@ -1,12 +1,13 @@
 import type { UserRole } from '@/shared/enums/UserRole.enum'
 
 export interface GetAllUsersResponseDTO {
-  uuid: string
+  id: string
   name: string
   phone: string
   role: UserRole
   status: string
-  profileImage: string | undefined
+  profileImage: string | null
   createdAt: Date
-  lastLogin: Date | undefined
+  lastLogin: Date | null
+  deletedAt: Date | null
 }

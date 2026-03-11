@@ -1,16 +1,18 @@
 import type { User } from '../../domain/entities/user.entity'
 import type { GetAllUsersResponseDTO } from '../dto/get-all-users-response.dto'
 
+
 export function toUserDTO(user: User): GetAllUsersResponseDTO {
   return {
-    uuid: user.uuid,
-    name: user.name,
-    phone: user.phone,
-    role: user.role,
-    status: user.status,
-    profileImage: user.profileImage,
-    createdAt: user.createdAt,
-    lastLogin: user.lastLogin,
+    id: user.id,
+    name: user.nameValue,
+    phone: user.phoneValue,
+    role: user.roleValue,
+    status: user.statusValue,
+    profileImage: user.profileImageValue,
+    createdAt: user.createdAtValue,
+    lastLogin: user.lastLoginValue,
+    deletedAt: user.deletedAtValue,
   }
 }
 

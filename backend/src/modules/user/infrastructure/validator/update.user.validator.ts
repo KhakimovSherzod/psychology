@@ -34,7 +34,3 @@ export const updateUserCredentialsSchema = z
     message: 'Kamida bitta maydonni yangilash kerak',
   })
 
-// UUID validation can be separate since it's coming from req.user
-export const uuidParamSchema = z
-  .uuid("Noto'g'ri UUID formati")
-  .nonempty('Foydalanuvchi UUID kiritilishi kerak')

@@ -1,4 +1,4 @@
-// app/admin/users/UsersManagement.tsx - FINAL UPDATED
+// app/admin/users/UsersManagement.tsx - UPDATED
 'use client'
 
 import {
@@ -10,6 +10,7 @@ import {
   MoreVertical,
   PauseCircle,
   RefreshCw,
+  RotateCcw,
   Search,
   Trash2,
   TrendingUp,
@@ -41,16 +42,21 @@ interface UsersManagementProps {
 interface UserFormData {
   name: string
   phone: string
-  pin: string
+  pin: string // Will be empty for updates, filled only when admin wants to change it
   role: UserDTO['role']
   profileImage?: string
 }
 
 // API Service functions
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL
 
-async function fetchUsers(): Promise<UserDTO[]> {
-  const response = await fetch(`${API_URL}/api/users`, {
+async function fetchUsers(includeDeleted: boolean = true): Promise<UserDTO[]> {
+  const url = new URL(`${API_URL}/api/users/`)
+  if (includeDeleted) {
+    url.searchParams.append('includeDeleted', 'true')
+  }
+
+  const response = await fetch(url.toString(), {
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
@@ -69,8 +75,6 @@ async function createUser(userData: {
   name: string
   phone: string
   pin: string
-  role: UserDTO['role']
-  profileImage?: string
 }): Promise<UserDTO> {
   const response = await fetch(`${API_URL}/api/users`, {
     method: 'POST',
@@ -90,6 +94,7 @@ async function createUser(userData: {
 }
 
 async function updateUserStatus(uuid: string, status: UserDTO['status']): Promise<void> {
+  console.log('Updating status for UUID:', uuid, 'to status:', status)
   const response = await fetch(`${API_URL}/api/users/${uuid}/status`, {
     method: 'PATCH',
     credentials: 'include',
@@ -122,13 +127,34 @@ async function reassignUserRole(uuid: string, role: UserDTO['role']): Promise<vo
 }
 
 async function updateUser(uuid: string, updateData: UpdateUserData): Promise<UserDTO> {
+  // Filter out empty strings and undefined values
+  const filteredData: Record<string, any> = {}
+
+  Object.entries(updateData).forEach(([key, value]) => {
+    // For PIN: only include if it's not empty string (admin wants to update it)
+    if (key === 'pin') {
+      if (value && value.trim() !== '') {
+        filteredData[key] = value.trim()
+      }
+    }
+    // For other fields: include if value is not undefined and not empty string
+    else if (value !== undefined && value !== '') {
+      filteredData[key] = value.trim()
+    }
+  })
+
+  // Don't send request if no data to update
+  if (Object.keys(filteredData).length === 0) {
+    throw new Error('No data provided for update')
+  }
+
   const response = await fetch(`${API_URL}/api/users/${uuid}`, {
     method: 'PATCH',
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(updateData),
+    body: JSON.stringify(filteredData),
   })
 
   if (!response.ok) {
@@ -154,6 +180,21 @@ async function deleteUser(uuid: string): Promise<void> {
   }
 }
 
+async function restoreUser(uuid: string): Promise<void> {
+  const response = await fetch(`${API_URL}/api/users/${uuid}/restore`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.message || 'Failed to restore user')
+  }
+}
+
 // Status Menu Component
 interface StatusMenuProps {
   user: UserDTO
@@ -164,19 +205,23 @@ interface StatusMenuProps {
 const StatusMenu: React.FC<StatusMenuProps> = ({ user, onUpdateStatus, loading }) => {
   const [isOpen, setIsOpen] = useState(false)
 
+  // Check if user is deleted (has deletedAt)
+  const isDeleted = user.deletedAt
+
   const getAvailableStatuses = (user: UserDTO) => {
+    // If user is deleted, don't show status menu
+    if (isDeleted) {
+      return []
+    }
+
     const statuses: { value: UserDTO['status']; label: string; icon: React.ReactNode }[] = [
       { value: 'ACTIVE', label: 'Faollashtirish', icon: <CheckCircle size={16} /> },
       { value: 'INACTIVE', label: 'Nofaol qilish', icon: <XCircle size={16} /> },
       { value: 'SUSPENDED', label: 'Suspand qilish', icon: <Ban size={16} /> },
       { value: 'BANNED', label: 'Bloklash', icon: <Ban size={16} /> },
-      { value: 'DELETED', label: "O'chirish", icon: <Trash2 size={16} /> },
     ]
 
-    return statuses.filter(
-      status =>
-        status.value !== user.status && !(user.status === 'DELETED' && status.value === 'DELETED')
-    )
+    return statuses.filter(status => status.value !== user.status)
   }
 
   const availableStatuses = getAvailableStatuses(user)
@@ -193,6 +238,11 @@ const StatusMenu: React.FC<StatusMenuProps> = ({ user, onUpdateStatus, loading }
     document.addEventListener('click', handleClickOutside)
     return () => document.removeEventListener('click', handleClickOutside)
   }, [isOpen])
+
+  // If user is deleted, don't show status menu
+  if (isDeleted) {
+    return null
+  }
 
   return (
     <div className='status-menu-container relative inline-block'>
@@ -241,6 +291,7 @@ const MobileUserCard: React.FC<{
   onEditUser: (user: UserDTO) => void
   onUpdateStatus: (user: UserDTO, status: UserDTO['status']) => void
   onDeleteUser: (user: UserDTO) => void
+  onRestoreUser: (user: UserDTO) => void
   onReassignRole: (user: UserDTO) => void
   loading: boolean
 }> = ({
@@ -250,15 +301,19 @@ const MobileUserCard: React.FC<{
   onEditUser,
   onUpdateStatus,
   onDeleteUser,
+  onRestoreUser,
   onReassignRole,
   loading,
 }) => {
-  const statusInfo = getStatusInfo(user.status)
+  const statusInfo = getStatusInfo(user)
   const roleInfo = getRoleInfo(user.role)
   const StatusIcon = statusInfo.icon
+  const isDeleted = user.deletedAt
 
   return (
-    <div className='bg-white p-4 rounded-lg shadow-sm border mb-3'>
+    <div
+      className={`bg-white p-4 rounded-lg shadow-sm border mb-3 ${isDeleted ? 'bg-gray-50' : ''}`}
+    >
       {/* User Header */}
       <div className='flex items-start justify-between mb-3'>
         <div className='flex items-center flex-1 min-w-0'>
@@ -276,11 +331,13 @@ const MobileUserCard: React.FC<{
             </div>
           )}
           <div className='min-w-0 flex-1'>
-            <h4 className='font-medium text-gray-900 truncate'>{user.name}</h4>
+            <h4 className={`font-medium truncate ${isDeleted ? 'text-gray-500' : 'text-gray-900'}`}>
+              {user.name}
+            </h4>
             <p className='text-sm text-gray-500 truncate'>{user.phone}</p>
           </div>
         </div>
-        
+
         {/* Quick Actions */}
         <div className='flex items-center gap-1 ml-2 flex-shrink-0'>
           <button
@@ -290,13 +347,15 @@ const MobileUserCard: React.FC<{
           >
             <Eye size={16} />
           </button>
-          <button
-            onClick={() => onEditUser(user)}
-            className='p-1 text-yellow-600 hover:text-yellow-900 rounded transition-colors'
-            title='Tahrirlash'
-          >
-            <Edit2 size={16} />
-          </button>
+          {!isDeleted && (
+            <button
+              onClick={() => onEditUser(user)}
+              className='p-1 text-yellow-600 hover:text-yellow-900 rounded transition-colors'
+              title='Tahrirlash'
+            >
+              <Edit2 size={16} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -308,12 +367,14 @@ const MobileUserCard: React.FC<{
           <StatusIcon size={12} className='mr-1' />
           {statusInfo.text}
         </span>
-        <button
-          onClick={() => onReassignRole(user)}
-          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full cursor-pointer hover:opacity-80 transition-opacity ${roleInfo.color}`}
-        >
-          {roleInfo.text}
-        </button>
+        {!isDeleted && (
+          <button
+            onClick={() => onReassignRole(user)}
+            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full cursor-pointer hover:opacity-80 transition-opacity ${roleInfo.color}`}
+          >
+            {roleInfo.text}
+          </button>
+        )}
       </div>
 
       {/* Stats Row */}
@@ -341,30 +402,38 @@ const MobileUserCard: React.FC<{
 
       {/* Action Buttons */}
       <div className='flex justify-between pt-3 border-t'>
-        <div className='flex-1 pr-1'>
-          <StatusMenu
-            user={user}
-            onUpdateStatus={onUpdateStatus}
-            loading={loading}
-          />
-        </div>
-        <button
-          onClick={() => onReassignRole(user)}
-          className='flex-1 px-2 py-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors'
-        >
-          Rol o'zgartirish
-        </button>
-        <button
-          onClick={() => onDeleteUser(user)}
-          disabled={loading || user.status === 'DELETED'}
-          className={`flex-1 px-2 py-1.5 text-xs font-medium rounded transition-colors ml-1 ${
-            user.status === 'DELETED'
-              ? 'text-gray-400 cursor-not-allowed'
-              : 'text-red-600 hover:text-red-800 hover:bg-red-50'
-          }`}
-        >
-          O'chirish
-        </button>
+        {isDeleted ? (
+          <>
+            <button
+              onClick={() => onRestoreUser(user)}
+              className='flex-1 px-2 py-1.5 text-xs font-medium text-green-600 hover:text-green-800 hover:bg-green-50 rounded transition-colors'
+            >
+              <div className='flex items-center justify-center gap-1'>
+                <RotateCcw size={12} />
+                <span>Qayta tiklash</span>
+              </div>
+            </button>
+          </>
+        ) : (
+          <>
+            <div className='flex-1 pr-1'>
+              <StatusMenu user={user} onUpdateStatus={onUpdateStatus} loading={loading} />
+            </div>
+            <button
+              onClick={() => onReassignRole(user)}
+              className='flex-1 px-2 py-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors'
+            >
+              Rol o'zgartirish
+            </button>
+            <button
+              onClick={() => onDeleteUser(user)}
+              disabled={loading}
+              className='flex-1 px-2 py-1.5 text-xs font-medium text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors ml-1 disabled:opacity-50 disabled:cursor-not-allowed'
+            >
+              O'chirish
+            </button>
+          </>
+        )}
       </div>
     </div>
   )
@@ -376,17 +445,32 @@ const formatCurrency = (amount: number | undefined): string => {
   return new Intl.NumberFormat('uz-UZ').format(amount) + ' so‘m'
 }
 
-const formatDate = (dateString: string | undefined): string => {
+const formatDate = (dateString: Date | undefined): string => {
   if (!dateString) return "Noma'lum"
   try {
-    return new Date(dateString).toLocaleDateString('uz-UZ')
+    const d = new Date(dateString)
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}` // deterministic
   } catch {
     return "Noma'lum"
   }
 }
 
-const getStatusInfo = (status: UserDTO['status']) => {
-  switch (status) {
+// Updated to handle deleted users separately
+const getStatusInfo = (user: UserDTO) => {
+  // Check if user is deleted
+  if (user.deletedAt) {
+    return {
+      text: "O'chirilgan",
+      color: 'bg-gray-300 text-gray-600',
+      icon: Trash2,
+    }
+  }
+
+  // Original status handling for non-deleted users
+  switch (user.status) {
     case 'ACTIVE':
       return { text: 'Faol', color: 'bg-green-100 text-green-800', icon: CheckCircle }
     case 'PENDING':
@@ -397,10 +481,8 @@ const getStatusInfo = (status: UserDTO['status']) => {
       return { text: 'Suspand', color: 'bg-orange-100 text-orange-800', icon: Ban }
     case 'BANNED':
       return { text: 'Bloklangan', color: 'bg-red-100 text-red-800', icon: Ban }
-    case 'DELETED':
-      return { text: "O'chirilgan", color: 'bg-gray-300 text-gray-600', icon: Trash2 }
     default:
-      return { text: status, color: 'bg-gray-100 text-gray-800', icon: AlertCircle }
+      return { text: user.status, color: 'bg-gray-100 text-gray-800', icon: AlertCircle }
   }
 }
 
@@ -420,7 +502,7 @@ const getRoleInfo = (role: UserDTO['role']) => {
 export default function UsersManagement({ initialUsers, courses, stats }: UsersManagementProps) {
   const [users, setUsers] = useState<UserDTO[]>(initialUsers)
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | UserDTO['status']>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | UserDTO['status'] | 'DELETED'>('all')
   const [roleFilter, setRoleFilter] = useState<'all' | UserDTO['role']>('all')
   const [selectedUser, setSelectedUser] = useState<UserDTO | null>(null)
   const [showUserDetails, setShowUserDetails] = useState(false)
@@ -445,7 +527,7 @@ export default function UsersManagement({ initialUsers, courses, stats }: UsersM
     const checkMobile = () => {
       setIsMobileView(window.innerWidth < 768)
     }
-    
+
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
@@ -457,8 +539,17 @@ export default function UsersManagement({ initialUsers, courses, stats }: UsersM
       const matchesSearch =
         user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.phone.includes(searchTerm) ||
-        user.uuid.toLowerCase().includes(searchTerm.toLowerCase())
-      const matchesStatus = statusFilter === 'all' || user.status === statusFilter
+        user.id.toLowerCase().includes(searchTerm.toLowerCase())
+
+      // Handle deleted users
+      const isDeleted = user.deletedAt
+      const matchesStatus =
+        statusFilter === 'all'
+          ? true
+          : statusFilter === 'DELETED'
+          ? isDeleted
+          : !isDeleted && user.status === statusFilter
+
       const matchesRole = roleFilter === 'all' || user.role === roleFilter
 
       return matchesSearch && matchesStatus && matchesRole
@@ -469,7 +560,7 @@ export default function UsersManagement({ initialUsers, courses, stats }: UsersM
   const refreshUsers = async () => {
     setRefreshing(true)
     try {
-      const freshUsers = await fetchUsers()
+      const freshUsers = await fetchUsers(true) // Include deleted users
       setUsers(freshUsers)
       toast.success('Foydalanuvchilar yangilandi')
     } catch (error) {
@@ -480,66 +571,110 @@ export default function UsersManagement({ initialUsers, courses, stats }: UsersM
     }
   }
 
-  // Validate form data (mimics backend validation)
+  // Validate form data - UPDATED for compatibility with backend schema
   const validateForm = (data: UserFormData, isNewUser: boolean): boolean => {
     const errors: Record<string, string> = {}
 
-    // Name validation
-    if (data.name && data.name.trim()) {
-      if (data.name.length < 1) {
+    // For new users: all fields are required
+    if (isNewUser) {
+      // Name validation
+      if (!data.name.trim()) {
+        errors.name = 'Ism talab qilinadi'
+      } else if (data.name.length < 1) {
         errors.name = "Ism 1 ta xarfdan kam bo'lmasligi kerak"
       } else if (data.name.length > 50) {
         errors.name = "Ism 50 tadan ko'p bo'lmasligi kerak"
       }
-    } else if (isNewUser) {
-      errors.name = 'Ism talab qilinadi'
-    }
 
-    // Phone validation
-    if (data.phone && data.phone.trim()) {
-      const phoneRegex = /^[+]?[0-9]{10,15}$/
-      if (!phoneRegex.test(data.phone)) {
-        errors.phone = "Telefon raqam tog'ri formatda bolishi kerak"
-      } else if (data.phone.length < 10) {
-        errors.phone = "Telefon raqam 10 ta xarfdan kam bo'lmasligi kerak"
-      } else if (data.phone.length > 15) {
-        errors.phone = "Telefon raqam 15 tadan ko'p bo'lmasligi kerak"
+      // Phone validation
+      if (!data.phone.trim()) {
+        errors.phone = 'Telefon raqam talab qilinadi'
+      } else {
+        const phoneRegex = /^[+]?[0-9]{10,15}$/
+        if (!phoneRegex.test(data.phone)) {
+          errors.phone = "Telefon raqam tog'ri formatda bolishi kerak"
+        } else if (data.phone.length < 10) {
+          errors.phone = "Telefon raqam 10 ta xarfdan kam bo'lmasligi kerak"
+        } else if (data.phone.length > 15) {
+          errors.phone = "Telefon raqam 15 tadan ko'p bo'lmasligi kerak"
+        }
       }
-    } else if (isNewUser) {
-      errors.phone = 'Telefon raqam talab qilinadi'
-    }
 
-    // PIN validation
-    if (data.pin && data.pin.trim()) {
-      const pinRegex = /^[0-9]{4}$/
-      if (!pinRegex.test(data.pin)) {
-        errors.pin = "PIN kodi 4 ta sondan iborat bo'lishi kerak"
+      // PIN validation for new users
+      if (!data.pin.trim()) {
+        errors.pin = 'PIN kod talab qilinadi'
+      } else {
+        const pinRegex = /^[0-9]{4}$/
+        if (!pinRegex.test(data.pin)) {
+          errors.pin = "PIN kodi 4 ta sondan iborat bo'lishi kerak"
+        }
       }
-    } else if (isNewUser) {
-      errors.pin = 'PIN kod talab qilinadi'
-    }
 
-    // Role validation
-    if (!['USER', 'ADMIN'].includes(data.role)) {
-      errors.role = "Rol 'USER' yoki 'ADMIN' bo'lishi kerak"
-    }
-
-    // Profile image validation (optional)
-    if (data.profileImage && data.profileImage.trim()) {
-      try {
-        new URL(data.profileImage)
-      } catch {
-        errors.profileImage = "Profil rasmi to'g'ri URL formatda bo'lishi kerak"
+      // Role validation
+      if (!['USER', 'ADMIN'].includes(data.role)) {
+        errors.role = "Rol 'USER' yoki 'ADMIN' bo'lishi kerak"
       }
-    }
+    } else {
+      // For existing user updates: all fields are optional, but validate if provided
 
-    // For existing user updates, check if at least one field is provided
-    if (!isNewUser && selectedUser) {
+      // Name validation (optional)
+      if (data.name && data.name.trim()) {
+        if (data.name.length < 1) {
+          errors.name = "Ism 1 ta xarfdan kam bo'lmasligi kerak"
+        } else if (data.name.length > 50) {
+          errors.name = "Ism 50 tadan ko'p bo'lmasligi kerak"
+        }
+      }
+
+      // Phone validation (optional)
+      if (data.phone && data.phone.trim()) {
+        const phoneRegex = /^[+]?[0-9]{10,15}$/
+        if (!phoneRegex.test(data.phone)) {
+          errors.phone = "Telefon raqam tog'ri formatda bolishi kerak"
+        } else if (data.phone.length < 10) {
+          errors.phone = "Telefon raqam 10 ta xarfdan kam bo'lmasligi kerak"
+        } else if (data.phone.length > 15) {
+          errors.phone = "Telefon raqam 15 tadan ko'p bo'lmasligi kerak"
+        }
+      }
+
+      // PIN validation (optional - only validate if provided)
+      if (data.pin && data.pin.trim()) {
+        const pinRegex = /^[0-9]{4}$/
+        if (!pinRegex.test(data.pin)) {
+          errors.pin = "PIN kodi 4 ta sondan iborat bo'lishi kerak"
+        }
+      }
+
+      // Profile image validation (optional)
+      if (data.profileImage && data.profileImage.trim()) {
+        try {
+          new URL(data.profileImage)
+        } catch {
+          errors.profileImage = "Profil rasmi to'g'ri URL formatda bo'lishi kerak"
+        }
+      }
+
+      // For existing user updates, check if at least one field is provided
+      // (matches backend requirement: "Kamida bitta maydonni yangilash kerak")
       const hasData = Object.entries(data).some(([key, value]) => {
-        if (key === 'role') return false // Don't check role here, it's handled separately
-        if (key === 'profileImage') return value && value.trim() !== ''
-        return value && value.trim() !== '' && value !== selectedUser[key as keyof UserDTO]
+        // Skip role field for this check since it's handled separately
+        if (key === 'role') return false
+
+        // For PIN: only consider it as data if it's not empty (admin wants to change it)
+        if (key === 'pin') {
+          return value && value.trim() !== ''
+        }
+
+        // For other fields: check if value exists and is different from current user data
+        if (selectedUser && value !== undefined && value !== '') {
+          const trimmedValue = value.trim()
+          const currentValue = selectedUser[key as keyof UserDTO]
+          return trimmedValue !== currentValue
+        }
+        return false
       })
+
       if (!hasData) {
         errors.general = 'Kamida bitta maydonni yangilash kerak'
       }
@@ -553,10 +688,11 @@ export default function UsersManagement({ initialUsers, courses, stats }: UsersM
   const handleUpdateStatus = async (user: UserDTO, newStatus: UserDTO['status']) => {
     try {
       setLoading(true)
-      await updateUserStatus(user.uuid, newStatus)
+      console.log('Updating status for user:', user.id, 'to', newStatus)
+      await updateUserStatus(user.id, newStatus)
 
       // Update local state
-      setUsers(users.map(u => (u.uuid === user.uuid ? { ...u, status: newStatus } : u)))
+      setUsers(users.map(u => (u.id === user.id ? { ...u, status: newStatus } : u)))
 
       // Status display messages
       const statusMessages: Record<UserDTO['status'], string> = {
@@ -564,11 +700,10 @@ export default function UsersManagement({ initialUsers, courses, stats }: UsersM
         INACTIVE: "Foydalanuvchi nofaol holatga o'tkazildi",
         SUSPENDED: "Foydalanuvchi suspand holatga o'tkazildi",
         BANNED: 'Foydalanuvchi bloklandi',
-        DELETED: "Foydalanuvchi o'chirildi",
         PENDING: "Foydalanuvchi kutilmoqda holatga o'tkazildi",
       }
 
-      toast.success(statusMessages[newStatus])
+      // toast.success(statusMessages[newStatus])
     } catch (error: any) {
       console.error('Error updating user status:', error)
       toast.error(error.message || 'Holatni yangilashda xatolik')
@@ -581,16 +716,16 @@ export default function UsersManagement({ initialUsers, courses, stats }: UsersM
   const handleReassignRole = async (user: UserDTO, newRole: UserDTO['role']) => {
     try {
       setLoading(true)
-      await reassignUserRole(user.uuid, newRole)
+      await reassignUserRole(user.id, newRole)
 
       // Update local state
-      setUsers(users.map(u => (u.uuid === user.uuid ? { ...u, role: newRole } : u)))
+      setUsers(users.map(u => (u.id === user.id ? { ...u, role: newRole } : u)))
 
-      toast.success('Foydalanuvchi roli muvaffaqiyatli o\'zgartirildi')
+      toast.success("Foydalanuvchi roli muvaffaqiyatli o'zgartirildi")
       setShowRoleModal(false)
     } catch (error: any) {
       console.error('Error reassigning user role:', error)
-      toast.error(error.message || 'Rolni o\'zgartirishda xatolik')
+      toast.error(error.message || "Rolni o'zgartirishda xatolik")
     } finally {
       setLoading(false)
     }
@@ -598,30 +733,73 @@ export default function UsersManagement({ initialUsers, courses, stats }: UsersM
 
   // Delete user
   const handleDeleteUser = async (user: UserDTO) => {
-    // Prevent deleting already deleted users
-    if (user.status === 'DELETED') {
+    // Check if user is already deleted
+    if (user.deletedAt) {
       toast.error("Bu foydalanuvchi allaqachon o'chirilgan")
       return
     }
 
     if (
       !confirm(
-        `"${user.name}" foydalanuvchisini o'chirishni tasdiqlaysizmi? Bu amalni bekor qilib bo'lmaydi.`
+        `"${user.name}" foydalanuvchisini o'chirishni tasdiqlaysizmi? Foydalanuvchini keyinroq qayta tiklash mumkin.`
       )
     )
       return
 
     try {
       setLoading(true)
-      await deleteUser(user.uuid)
+      await deleteUser(user.id)
 
-      // Update status to DELETED instead of removing from array
-      setUsers(users.map(u => (u.uuid === user.uuid ? { ...u, status: 'DELETED' } : u)))
+      // Update local state - mark as deleted
+      const updatedUsers = users.map(u =>
+        u.id === user.id
+          ? {
+              ...u,
+              deletedAt: new Date(), // Add deletion timestamp
+            }
+          : u
+      )
 
+      setUsers(updatedUsers)
       toast.success("Foydalanuvchi o'chirildi")
     } catch (error: any) {
       console.error('Error deleting user:', error)
       toast.error(error.message || "O'chirishda xatolik")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Restore user
+  const handleRestoreUser = async (user: UserDTO) => {
+    if (!user.deletedAt) {
+      toast.error("Bu foydalanuvchi o'chirilmagan")
+      return
+    }
+
+    if (!confirm(`"${user.name}" foydalanuvchisini qayta tiklashni tasdiqlaysizmi?`)) return
+
+    try {
+      setLoading(true)
+      await restoreUser(user.id)
+
+      // Update local state - remove deletedAt
+      setUsers(
+        users.map(u =>
+          u.id === user.id
+            ? {
+                ...u,
+                deletedAt: undefined, // Remove deletion timestamp
+                status: 'ACTIVE', // Set to active by default
+              }
+            : u
+        )
+      )
+
+      toast.success('Foydalanuvchi muvaffaqiyatli qayta tiklandi')
+    } catch (error: any) {
+      console.error('Error restoring user:', error)
+      toast.error(error.message || 'Qayta tiklashda xatolik')
     } finally {
       setLoading(false)
     }
@@ -644,7 +822,7 @@ export default function UsersManagement({ initialUsers, courses, stats }: UsersM
     }
   }
 
-  // Create new user
+  // Create or Update user - UPDATED to handle optional fields for updates
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -658,12 +836,13 @@ export default function UsersManagement({ initialUsers, courses, stats }: UsersM
       setLoading(true)
 
       if (isNewUser) {
-        // Create new user
+        // Create new user - all fields required
         const userData = {
           name: formData.name.trim(),
           phone: formData.phone.trim(),
-          pin: formData.pin,
+          pin: formData.pin.trim(),
           role: formData.role,
+          ...(formData.profileImage?.trim() && { profileImage: formData.profileImage.trim() }),
         }
 
         const newUser = await createUser(userData)
@@ -672,17 +851,33 @@ export default function UsersManagement({ initialUsers, courses, stats }: UsersM
         setUsers(prev => [newUser, ...prev])
         toast.success('Yangi foydalanuvchi muvaffaqiyatli yaratildi')
       } else {
-        // Update existing user
+        // Update existing user - all fields optional
         const updateData: UpdateUserData = {}
-        if (formData.name.trim() !== selectedUser.name) updateData.name = formData.name.trim()
-        if (formData.phone.trim() !== selectedUser.phone) updateData.phone = formData.phone.trim()
-        if (formData.pin && formData.pin.trim()) updateData.pin = formData.pin.trim()
-        if (formData.profileImage?.trim() !== selectedUser.profileImage) {
-          updateData.profileImage = formData.profileImage?.trim()
+
+        // Only include fields that are different from current data
+        if (formData.name.trim() !== selectedUser.name) {
+          updateData.name = formData.name.trim()
         }
 
-        const updatedUser = await updateUser(selectedUser.uuid, updateData)
-        setUsers(users.map(u => (u.uuid === selectedUser.uuid ? { ...u, ...updatedUser } : u)))
+        if (formData.phone.trim() !== selectedUser.phone) {
+          updateData.phone = formData.phone.trim()
+        }
+
+        // Only include PIN if admin wants to change it (not empty)
+        if (formData.pin && formData.pin.trim() !== '') {
+          updateData.pin = formData.pin.trim()
+        }
+
+        // Profile image - include if it's different (handles empty string for removal)
+        if (formData.profileImage?.trim() !== selectedUser.profileImage) {
+          updateData.profileImage = formData.profileImage?.trim() || ''
+        }
+
+        // Don't send role in this update - it's handled separately
+        // Role is included in a different API endpoint
+
+        const updatedUser = await updateUser(selectedUser.id, updateData)
+        setUsers(users.map(u => (u.id === selectedUser.id ? { ...u, ...updatedUser } : u)))
         toast.success("Foydalanuvchi ma'lumotlari yangilandi")
       }
 
@@ -707,11 +902,17 @@ export default function UsersManagement({ initialUsers, courses, stats }: UsersM
 
   // Open edit modal with user data
   const openEditModal = (user: UserDTO) => {
+    // Don't allow editing deleted users
+    if (user.deletedAt) {
+      toast.error("O'chirilgan foydalanuvchini tahrirlab bo'lmaydi")
+      return
+    }
+
     setSelectedUser(user)
     setFormData({
       name: user.name,
       phone: user.phone,
-      pin: '', // Don't show existing PIN for security
+      pin: '', // Empty for security - admin can enter new PIN if they want to change it
       role: user.role,
       profileImage: user.profileImage || '',
     })
@@ -752,7 +953,9 @@ export default function UsersManagement({ initialUsers, courses, stats }: UsersM
       {/* Header */}
       <div className='flex flex-col md:flex-row md:justify-between md:items-center gap-3'>
         <div>
-          <h1 className='text-xl md:text-3xl font-bold text-gray-900'>Foydalanuvchilar Boshqaruvi</h1>
+          <h1 className='text-xl md:text-3xl font-bold text-gray-900'>
+            Foydalanuvchilar Boshqaruvi
+          </h1>
           <p className='text-xs md:text-sm text-gray-600 mt-1'>
             Barcha foydalanuvchilarni boshqarish va monitoring qilish
           </p>
@@ -885,24 +1088,25 @@ export default function UsersManagement({ initialUsers, courses, stats }: UsersM
         <div className='space-y-2'>
           {filteredUsers.map(user => (
             <MobileUserCard
-              key={user.uuid}
+              key={user.id}
               user={user}
               courses={courses}
-              onViewDetails={(user) => {
+              onViewDetails={user => {
                 setSelectedUser(user)
                 setShowUserDetails(true)
               }}
               onEditUser={openEditModal}
               onUpdateStatus={handleUpdateStatus}
               onDeleteUser={handleDeleteUser}
-              onReassignRole={(user) => {
+              onRestoreUser={handleRestoreUser}
+              onReassignRole={user => {
                 setSelectedUser(user)
                 setShowRoleModal(true)
               }}
               loading={loading}
             />
           ))}
-          
+
           {filteredUsers.length === 0 && (
             <div className='text-center py-8 text-gray-500 bg-white rounded-lg border'>
               Hech qanday foydalanuvchi topilmadi
@@ -941,12 +1145,16 @@ export default function UsersManagement({ initialUsers, courses, stats }: UsersM
               </thead>
               <tbody className='bg-white divide-y divide-gray-200'>
                 {filteredUsers.map(user => {
-                  const statusInfo = getStatusInfo(user.status)
+                  const statusInfo = getStatusInfo(user)
                   const roleInfo = getRoleInfo(user.role)
                   const StatusIcon = statusInfo.icon
+                  const isDeleted = user.deletedAt
 
                   return (
-                    <tr key={user.uuid} className='hover:bg-gray-50'>
+                    <tr
+                      key={user.id}
+                      className={`hover:bg-gray-50 ${isDeleted ? 'bg-gray-50' : ''}`}
+                    >
                       <td className='px-4 md:px-6 py-4'>
                         <div className='flex items-center'>
                           {user.profileImage ? (
@@ -963,24 +1171,38 @@ export default function UsersManagement({ initialUsers, courses, stats }: UsersM
                             </div>
                           )}
                           <div>
-                            <div className='text-sm font-medium text-gray-900'>{user.name}</div>
+                            <div
+                              className={`text-sm font-medium ${
+                                isDeleted ? 'text-gray-500' : 'text-gray-900'
+                              }`}
+                            >
+                              {user.name}
+                            </div>
                             <div className='text-xs text-gray-500'>{user.phone}</div>
                             <div className='text-xs text-gray-400 truncate max-w-[100px] md:max-w-none'>
-                              UUID: {user.uuid.substring(0, 8)}...
+                              UUID: {user.id.substring(0, 8)}...
                             </div>
                           </div>
                         </div>
                       </td>
                       <td className='px-4 md:px-6 py-4'>
-                        <button
-                          onClick={() => {
-                            setSelectedUser(user)
-                            setShowRoleModal(true)
-                          }}
-                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full cursor-pointer hover:opacity-80 transition-opacity ${roleInfo.color}`}
-                        >
-                          {roleInfo.text}
-                        </button>
+                        {!isDeleted ? (
+                          <button
+                            onClick={() => {
+                              setSelectedUser(user)
+                              setShowRoleModal(true)
+                            }}
+                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full cursor-pointer hover:opacity-80 transition-opacity ${roleInfo.color}`}
+                          >
+                            {roleInfo.text}
+                          </button>
+                        ) : (
+                          <span
+                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${roleInfo.color} opacity-50`}
+                          >
+                            {roleInfo.text}
+                          </span>
+                        )}
                       </td>
                       <td className='px-4 md:px-6 py-4'>
                         <div className='flex items-center gap-2'>
@@ -993,7 +1215,7 @@ export default function UsersManagement({ initialUsers, courses, stats }: UsersM
                         </div>
                       </td>
                       <td className='px-4 md:px-6 py-4'>
-                        <div className='text-sm text-gray-900'>
+                        <div className={`text-sm ${isDeleted ? 'text-gray-500' : 'text-gray-900'}`}>
                           {user.enrollments?.length || 0} ta kurs
                         </div>
                         {user.enrollments && user.enrollments.length > 0 && (
@@ -1012,10 +1234,14 @@ export default function UsersManagement({ initialUsers, courses, stats }: UsersM
                         )}
                       </td>
                       <td className='px-4 md:px-6 py-4'>
-                        <div className='text-sm text-gray-900'>
+                        <div className={`text-sm ${isDeleted ? 'text-gray-500' : 'text-gray-900'}`}>
                           {user.payments?.length || 0} ta to'lov
                         </div>
-                        <div className='text-sm font-medium text-gray-700'>
+                        <div
+                          className={`text-sm font-medium ${
+                            isDeleted ? 'text-gray-500' : 'text-gray-700'
+                          }`}
+                        >
                           {formatCurrency(
                             user.payments?.reduce(
                               (sum: number, payment: any) => sum + Number(payment.amount || 0),
@@ -1026,6 +1252,11 @@ export default function UsersManagement({ initialUsers, courses, stats }: UsersM
                       </td>
                       <td className='px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
                         {formatDate(user.createdAt)}
+                        {isDeleted && user.deletedAt && (
+                          <div className='text-xs text-gray-400 mt-1'>
+                            O'chirilgan: {formatDate(user.deletedAt)}
+                          </div>
+                        )}
                       </td>
                       <td className='px-4 md:px-6 py-4 whitespace-nowrap text-sm font-medium'>
                         <div className='flex items-center gap-1'>
@@ -1040,33 +1271,43 @@ export default function UsersManagement({ initialUsers, courses, stats }: UsersM
                             <Eye size={14} />
                           </button>
 
-                          <button
-                            onClick={() => openEditModal(user)}
-                            className='p-1 text-yellow-600 hover:text-yellow-900 hover:bg-yellow-50 rounded transition-colors'
-                            title='Tahrirlash'
-                          >
-                            <Edit2 size={14} />
-                          </button>
+                          {!isDeleted && (
+                            <>
+                              <button
+                                onClick={() => openEditModal(user)}
+                                className='p-1 text-yellow-600 hover:text-yellow-900 hover:bg-yellow-50 rounded transition-colors'
+                                title='Tahrirlash'
+                              >
+                                <Edit2 size={14} />
+                              </button>
 
-                          {/* Status Menu Component */}
-                          <StatusMenu
-                            user={user}
-                            onUpdateStatus={handleUpdateStatus}
-                            loading={loading}
-                          />
+                              <StatusMenu
+                                user={user}
+                                onUpdateStatus={handleUpdateStatus}
+                                loading={loading}
+                              />
 
-                          <button
-                            onClick={() => handleDeleteUser(user)}
-                            disabled={loading || user.status === 'DELETED'}
-                            className={`p-1 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                              user.status === 'DELETED'
-                                ? 'text-gray-400 cursor-not-allowed'
-                                : 'text-red-600 hover:text-red-900 hover:bg-red-50'
-                            }`}
-                            title={user.status === 'DELETED' ? "O'chirilgan" : "O'chirish"}
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                              <button
+                                onClick={() => handleDeleteUser(user)}
+                                disabled={loading}
+                                className='p-1 text-red-600 hover:text-red-900 hover:bg-red-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+                                title="O'chirish"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </>
+                          )}
+
+                          {isDeleted && (
+                            <button
+                              onClick={() => handleRestoreUser(user)}
+                              disabled={loading}
+                              className='p-1 text-green-600 hover:text-green-900 hover:bg-green-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+                              title='Qayta tiklash'
+                            >
+                              <RotateCcw size={14} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1077,7 +1318,9 @@ export default function UsersManagement({ initialUsers, courses, stats }: UsersM
           </div>
 
           {filteredUsers.length === 0 && (
-            <div className='text-center py-8 text-gray-500'>Hech qanday foydalanuvchi topilmadi</div>
+            <div className='text-center py-8 text-gray-500'>
+              Hech qanday foydalanuvchi topilmadi
+            </div>
           )}
         </div>
       )}
@@ -1115,14 +1358,14 @@ export default function UsersManagement({ initialUsers, courses, stats }: UsersM
                   )}
                   <div className='flex-1'>
                     <h4 className='text-base md:text-lg font-semibold'>{selectedUser.name}</h4>
-                    <p className='text-xs md:text-sm text-gray-600'>UUID: {selectedUser.uuid}</p>
+                    <p className='text-xs md:text-sm text-gray-600'>UUID: {selectedUser.id}</p>
                     <div className='flex flex-wrap gap-1 md:gap-2 mt-2'>
                       <span
                         className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                          getStatusInfo(selectedUser.status).color
+                          getStatusInfo(selectedUser).color
                         }`}
                       >
-                        {getStatusInfo(selectedUser.status).text}
+                        {getStatusInfo(selectedUser).text}
                       </span>
                       <span
                         className={`px-2 py-1 text-xs font-semibold rounded-full ${
@@ -1132,42 +1375,65 @@ export default function UsersManagement({ initialUsers, courses, stats }: UsersM
                         {getRoleInfo(selectedUser.role).text}
                       </span>
                     </div>
+                    {selectedUser.deletedAt && (
+                      <div className='mt-2 text-xs text-red-600 bg-red-50 px-2 py-1 rounded'>
+                        O'chirilgan: {formatDate(selectedUser.deletedAt)}
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 {/* Detailed Info Grid */}
                 <div className='grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4'>
                   <div>
-                    <h4 className='font-semibold mb-2 text-gray-700 text-sm md:text-base'>Kontakt Ma&apos;lumotlari</h4>
+                    <h4 className='font-semibold mb-2 text-gray-700 text-sm md:text-base'>
+                      Kontakt Ma&apos;lumotlari
+                    </h4>
                     <div className='space-y-1 md:space-y-2'>
                       <div>
                         <span className='text-gray-600 text-xs md:text-sm'>Telefon:</span>
                         <p className='font-medium text-sm md:text-base'>{selectedUser.phone}</p>
                       </div>
                       <div>
-                        <span className='text-gray-600 text-xs md:text-sm'>Ro&apos;yxatdan o&apos;tgan:</span>
-                        <p className='font-medium text-sm md:text-base'>{formatDate(selectedUser.createdAt)}</p>
+                        <span className='text-gray-600 text-xs md:text-sm'>
+                          Ro&apos;yxatdan o&apos;tgan:
+                        </span>
+                        <p className='font-medium text-sm md:text-base'>
+                          {formatDate(selectedUser.createdAt)}
+                        </p>
                       </div>
                       <div>
                         <span className='text-gray-600 text-xs md:text-sm'>Oxirgi kirish:</span>
-                        <p className='font-medium text-sm md:text-base'>{formatDate(selectedUser.lastLogin)}</p>
+                        <p className='font-medium text-sm md:text-base'>
+                          {formatDate(selectedUser.lastLogin)}
+                        </p>
                       </div>
                     </div>
                   </div>
 
                   <div>
-                    <h4 className='font-semibold mb-2 text-gray-700 text-sm md:text-base'>Statistika</h4>
+                    <h4 className='font-semibold mb-2 text-gray-700 text-sm md:text-base'>
+                      Statistika
+                    </h4>
                     <div className='space-y-1 md:space-y-2'>
                       <div>
                         <span className='text-gray-600 text-xs md:text-sm'>Kurslar soni:</span>
-                        <p className='font-medium text-sm md:text-base'>{selectedUser.enrollments?.length || 0} ta</p>
+                        <p className='font-medium text-sm md:text-base'>
+                          {selectedUser.enrollments?.length || 0} ta
+                        </p>
                       </div>
                       <div>
-                        <span className='text-gray-600 text-xs md:text-sm'>To&apos;lovlar soni:</span>
-                        <p className='font-medium text-sm md:text-base'>{selectedUser.payments?.length || 0} ta</p>
+                        <span className='text-gray-600 text-xs md:text-sm'>
+                          To&apos;lovlar soni:
+                        </span>
+                        <p className='font-medium text-sm md:text-base'>
+                          {selectedUser.payments?.length || 0} ta
+                        </p>
                       </div>
                       <div>
-                        <span className='text-gray-600 text-xs md:text-sm'>Jami sarflangan summa:</span>
+                        <span className='text-gray-600 text-xs md:text-sm'>
+                          Jami sarflangan summa:
+                        </span>
                         <p className='font-medium text-sm md:text-base'>
                           {formatCurrency(
                             selectedUser.payments?.reduce(
@@ -1224,7 +1490,9 @@ export default function UsersManagement({ initialUsers, courses, stats }: UsersM
         <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 md:p-4 z-50'>
           <div className='bg-white rounded-lg w-full max-w-md'>
             <div className='p-4 md:p-6'>
-              <h3 className='text-lg font-bold mb-3 md:mb-4'>Foydalanuvchi Rolini O&apos;zgartirish</h3>
+              <h3 className='text-lg font-bold mb-3 md:mb-4'>
+                Foydalanuvchi Rolini O&apos;zgartirish
+              </h3>
               <p className='text-sm md:text-base text-gray-600 mb-4 md:mb-6'>
                 <span className='font-medium'>{selectedUser.name}</span> foydalanuvchisining roli
               </p>
@@ -1289,7 +1557,9 @@ export default function UsersManagement({ initialUsers, courses, stats }: UsersM
               <form onSubmit={handleCreateUser}>
                 <div className='space-y-3 md:space-y-4'>
                   <div>
-                    <label className='block text-sm font-medium text-gray-700 mb-1'>Ism</label>
+                    <label className='block text-sm font-medium text-gray-700 mb-1'>
+                      Ism {!selectedUser && '*'}
+                    </label>
                     <input
                       type='text'
                       name='name'
@@ -1305,7 +1575,9 @@ export default function UsersManagement({ initialUsers, courses, stats }: UsersM
                   </div>
 
                   <div>
-                    <label className='block text-sm font-medium text-gray-700 mb-1'>Telefon</label>
+                    <label className='block text-sm font-medium text-gray-700 mb-1'>
+                      Telefon {!selectedUser && '*'}
+                    </label>
                     <input
                       type='tel'
                       name='phone'
@@ -1320,41 +1592,65 @@ export default function UsersManagement({ initialUsers, courses, stats }: UsersM
                     )}
                   </div>
 
+                  <div>
+                    <label className='block text-sm font-medium text-gray-700 mb-1'>
+                      {selectedUser ? 'Yangi PIN (4 ta raqam)' : 'PIN (4 ta raqam) *'}
+                    </label>
+                    <input
+                      type='password'
+                      name='pin'
+                      value={formData.pin}
+                      onChange={handleFormChange}
+                      className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm md:text-base'
+                      placeholder={
+                        selectedUser ? "Faqat o'zgartirmoqchi bo'lsangiz kiriting" : '1234'
+                      }
+                      maxLength={4}
+                      required={!selectedUser}
+                    />
+                    {selectedUser && (
+                      <p className='mt-1 text-xs text-gray-500'>
+                        Faqat PIN ni o'zgartirmoqchi bo'lsangiz kiriting
+                      </p>
+                    )}
+                    {formErrors.pin && (
+                      <p className='mt-1 text-sm text-red-600'>{formErrors.pin}</p>
+                    )}
+                  </div>
+
                   {!selectedUser && (
                     <div>
-                      <label className='block text-sm font-medium text-gray-700 mb-1'>
-                        PIN (4 ta raqam)
-                      </label>
-                      <input
-                        type='password'
-                        name='pin'
-                        value={formData.pin}
+                      <label className='block text-sm font-medium text-gray-700 mb-1'>Rol *</label>
+                      <select
+                        name='role'
+                        value={formData.role}
                         onChange={handleFormChange}
                         className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm md:text-base'
-                        placeholder='1234'
-                        maxLength={4}
                         required
-                      />
-                      {formErrors.pin && (
-                        <p className='mt-1 text-sm text-red-600'>{formErrors.pin}</p>
+                      >
+                        <option value='USER'>Foydalanuvchi</option>
+                        <option value='ADMIN'>Admin</option>
+                      </select>
+                      {formErrors.role && (
+                        <p className='mt-1 text-sm text-red-600'>{formErrors.role}</p>
                       )}
                     </div>
                   )}
 
                   <div>
-                    <label className='block text-sm font-medium text-gray-700 mb-1'>Rol</label>
-                    <select
-                      name='role'
-                      value={formData.role}
+                    <label className='block text-sm font-medium text-gray-700 mb-1'>
+                      Profil rasmi URL
+                    </label>
+                    <input
+                      type='url'
+                      name='profileImage'
+                      value={formData.profileImage}
                       onChange={handleFormChange}
                       className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm md:text-base'
-                      required={!selectedUser}
-                    >
-                      <option value='USER'>Foydalanuvchi</option>
-                      <option value='ADMIN'>Admin</option>
-                    </select>
-                    {formErrors.role && (
-                      <p className='mt-1 text-sm text-red-600'>{formErrors.role}</p>
+                      placeholder='https://example.com/profile.jpg'
+                    />
+                    {formErrors.profileImage && (
+                      <p className='mt-1 text-sm text-red-600'>{formErrors.profileImage}</p>
                     )}
                   </div>
                 </div>

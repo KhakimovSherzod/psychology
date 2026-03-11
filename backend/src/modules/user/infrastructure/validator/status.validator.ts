@@ -10,7 +10,6 @@ export const updateUserStatusSchema = z.object({
       UserStatus.INACTIVE,
       UserStatus.SUSPENDED,
       UserStatus.BANNED,
-      UserStatus.DELETED,
     ],
     "Noto'g'ri foydalanuvchi statusi"
   ),

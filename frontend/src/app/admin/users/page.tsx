@@ -9,27 +9,30 @@ import UsersManagement from './UsersManagement'
 async function getUsersData(): Promise<UserDTO[]> {
   try {
     const cookieStore = await cookies()
-    const accessToken = cookieStore.get('access_token')?.value
-    const refreshToken = cookieStore.get('refresh_token')?.value
+    const accessToken = cookieStore.get('accessToken')?.value
+    const refreshToken = cookieStore.get('refreshToken')?.value
 
     const cookieHeader = [
-      accessToken ? `access_token=${accessToken}` : '',
-      refreshToken ? `refresh_token=${refreshToken}` : '',
+      accessToken ? `accessToken=${accessToken}` : '',
+      refreshToken ? `refreshToken=${refreshToken}` : '',
     ]
       .filter(Boolean)
       .join('; ')
-    
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/`, {
-      headers: {
-        Cookie: cookieHeader,
-      },
-      cache: 'no-store',
-    })
-    
+
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users?includeDeleted=true`,
+      {
+        headers: {
+          Cookie: cookieHeader,
+        },
+        cache: 'no-store',
+      }
+    )
+
     if (!response.ok) {
       throw new Error(`Failed to fetch users: ${response.status}`)
     }
-    
+
     const data = await response.json()
     return Array.isArray(data) ? data : data.users || []
   } catch (error) {
@@ -41,12 +44,12 @@ async function getUsersData(): Promise<UserDTO[]> {
 async function getCoursesData(): Promise<PlaylistDTO[]> {
   try {
     const cookieStore = await cookies()
-    const accessToken = cookieStore.get('access_token')?.value
-    const refreshToken = cookieStore.get('refresh_token')?.value
+    const accessToken = cookieStore.get('accessToken')?.value
+    const refreshToken = cookieStore.get('refreshToken')?.value
 
     const cookieHeader = [
-      accessToken ? `access_token=${accessToken}` : '',
-      refreshToken ? `refresh_token=${refreshToken}` : '',
+      accessToken ? `accessToken=${accessToken}` : '',
+      refreshToken ? `refreshToken=${refreshToken}` : '',
     ]
       .filter(Boolean)
       .join('; ')
@@ -74,10 +77,7 @@ export default async function AdminUsersPage() {
   const currentUser = await getCurrentUser()
 
   // Fetch real data
-  const [users, courses] = await Promise.all([
-    getUsersData(),
-    getCoursesData(),
-  ])
+  const [users, courses] = await Promise.all([getUsersData(), getCoursesData()])
 
   // Check if user has admin permission
   if (currentUser?.role !== 'ADMIN' && currentUser?.role !== 'OWNER') {
@@ -95,21 +95,15 @@ export default async function AdminUsersPage() {
   const stats = {
     totalUsers: users.length,
     activeUsers: users.filter(user => user.status === 'ACTIVE').length,
-    blockedUsers: users.filter(
-      user => user.status === 'BANNED' || user.status === 'SUSPENDED'
-    ).length,
+    blockedUsers: users.filter(user => user.status === 'BANNED' || user.status === 'SUSPENDED')
+      .length,
     // TODO: Implement total revenue when payment module is ready
     totalRevenue: 0,
   }
 
   return (
     <div className='p-6'>
-      <UsersManagement 
-        initialUsers={users} 
-        courses={courses} 
-        stats={stats} 
-        currentUser={currentUser}
-      />
+      <UsersManagement initialUsers={users} courses={courses} stats={stats} />
     </div>
   )
 }

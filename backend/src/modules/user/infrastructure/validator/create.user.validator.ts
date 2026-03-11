@@ -1,4 +1,4 @@
-import { UserRole } from '@/shared/enums/UserRole.enum'
+
 import { z } from 'zod'
 
 export const CreateUserSchema = z.object({
@@ -14,5 +14,5 @@ export const CreateUserSchema = z.object({
     .max(15, "Telefon raqam 15 tadan ko'p bo'lmasligi kerak"),
 
   pin: z.string().length(4, "PIN kodi 4 ta sondan iborat bo'lishi kerak"),
-  role: z.enum([UserRole.ADMIN, UserRole.USER]),
+
 })

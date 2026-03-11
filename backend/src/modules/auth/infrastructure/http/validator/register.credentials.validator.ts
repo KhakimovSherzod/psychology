@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from 'zod';
 
 export const registerCredentialsSchema = z.object({
   name: z
@@ -14,8 +14,15 @@ export const registerCredentialsSchema = z.object({
 
   pin: z.string().length(4, "PIN kodi 4 ta sondan iborat bo'lishi kerak"),
 
+  // Optional device data
   deviceId: z
     .string()
     .min(1, 'Device ID kiritilishi kerak, Device ID xatolik yuz berdi')
     .max(100, "Device ID 100 tadan ko'p bo'lmasligi kerak"),
-})
+
+  deviceName: z.string().optional(),
+  deviceType: z.string().optional(),
+  os: z.string().optional(),
+  browser: z.string().optional(),
+  ipAddress: z.string().optional(),
+});

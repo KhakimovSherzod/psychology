@@ -1,6 +1,7 @@
 // src/modules/user/infrastructure/prisma/repositories/prisma-user.repository.ts
 
 import type { IUserRepository } from '@/modules/user/application/repositories/user.repository'
+import { Device } from '@/modules/user/domain/entities/device.entity'
 import { User } from '@/modules/user/domain/entities/user.entity'
 import { PhoneNumber } from '@/modules/user/domain/value-objects/PhoneNumber'
 import { UserName } from '@/modules/user/domain/value-objects/UserName'
@@ -8,9 +9,9 @@ import { UserStatusVO } from '@/modules/user/domain/value-objects/UserStatusVO'
 import { prisma } from '@/shared/client'
 import { UserRole } from '@/shared/enums/UserRole.enum'
 import { UserStatus } from '@/shared/enums/UserStatus.enum'
-import { DatabaseError } from '@/shared/errors/DatabaseError'
-import { UserMappingError } from '@/shared/errors/UserMappingError'
-import { UserNotFound } from '@/shared/errors/UserNotFound.error'
+import { DatabaseError } from '@/shared/errors/repository/DatabaseError'
+import { UserMappingError } from '@/shared/errors/repository/UserMappingError'
+import { UserNotFound } from '@/shared/errors/repository/UserNotFound.error'
 import { logger } from '@/utils/logger'
 import type { Prisma, Role, Status } from '@prisma/client'
 import bcrypt from 'bcrypt'
@@ -26,32 +27,46 @@ export class PrismaUserRepository implements IUserRepository {
     return role as Role
   }
 
-  // Helper: Convert Prisma Status to UserStatus
-  private toUserStatus(status: Status): UserStatus {
-    return status as UserStatus
-  }
-
   // Helper: Convert UserStatus to Prisma Status
   private toPrismaStatus(status: UserStatus): Status {
     return status as Status
   }
 
   // Helper: Convert Prisma record to User entity
-  private toDomain(record: any): User {
-    return new User(
+private toDomain(record: any): User {
+  const devices: Device[] = (record.devices ?? []).map((d: any) =>
+    Device.reconstruct(
+      d.uuid,
       record.uuid,
-      new UserName(record.name),
-      this.toUserRole(record.role),
-      new UserStatusVO(this.toUserStatus(record.status)),
-      new PhoneNumber(record.phone),
-      record.pinHash,
-      record.deviceId || [],
-      record.profileImage || undefined,
-      record.createdAt,
-      record.lastLogin || undefined,
-      record.deletedAt || undefined
+      d.deviceName,
+      d.deviceType,
+      d.os,
+      d.browser,
+      d.ipAddress,
+      d.deviceToken,
+      d.lastUsedAt,
+      d.createdAt,
+      d.deletedAt ?? undefined,
+      d.id // 👈 internalId from DB
     )
-  }
+  )
+
+  return User.reconstruct({
+    uuid: record.uuid,
+    name: new UserName(record.name),
+    role: this.toUserRole(record.role),
+    status: new UserStatusVO(record.status),
+    phone: new PhoneNumber(record.phone),
+    pinHash: record.pinHash,
+    devices,
+    profileImage: record.profileImage,
+    createdAt: record.createdAt,
+    lastLogin: record.lastLogin,
+    deletedAt: record.deletedAt,
+    internalId: record.id // 👈 VERY IMPORTANT
+  })
+}
+
 
   // Find a user by phone (non-deleted only)
   async findByPhone(phone: string): Promise<User | null> {
@@ -72,12 +87,10 @@ export class PrismaUserRepository implements IUserRepository {
     const record = await prisma.user.findFirst({
       where: {
         uuid,
-        deletedAt: null,
       },
     })
 
     if (!record) {
-      logger.error(`User with UUID ${uuid} not found`)
       throw new UserNotFound('User with UUID not found', uuid)
     }
 
@@ -92,77 +105,95 @@ export class PrismaUserRepository implements IUserRepository {
       )
     }
   }
-
-  // Create a new user
   async create(user: User): Promise<User> {
-    // Prepare data with explicit handling of optional fields
-    const data: Prisma.UserCreateInput = {
-      uuid: user.uuid,
-      name: user.name,
-      role: this.toPrismaRole(user.role),
-      status: this.toPrismaStatus(user.status),
-      phone: user.phone,
-      pinHash: user.pinHash,
-      deviceId: user.deviceIds,
-      createdAt: user.createdAt,
-    }
-
-    // Add optional fields only if they have values
-    if (user.profileImage !== undefined) {
-      data.profileImage = user.profileImage
-    }
-
-    if (user.lastLogin !== undefined) {
-      data.lastLogin = user.lastLogin
-    }
-
-    if (user.deletedAt !== undefined) {
-      data.deletedAt = user.deletedAt
-    }
-
     const record = await prisma.user.create({
-      data,
+      data: {
+        uuid: user.id,
+        name: user.nameValue,
+        phone: user.phoneValue,
+        pinHash: user.pinHashValue,
+        role: user.roleValue,
+        status: user.statusValue,
+        profileImage: user.profileImageValue,
+        createdAt: user.createdAtValue,
+        lastLogin: user.lastLoginValue,
+        deletedAt: user.deletedAtValue,
+      },
     })
 
     return this.toDomain(record)
   }
 
   // Save (update) a user
-  async save(user: User): Promise<User> {
-    // Prepare update data
-    const updateData: Prisma.UserUpdateInput = {
-      name: user.name,
-      role: this.toPrismaRole(user.role),
-      status: this.toPrismaStatus(user.status),
-      phone: user.phone,
-      pinHash: user.pinHash,
-      deviceId: user.deviceIds,
-    }
 
-    // Handle optional fields
-    if (user.profileImage !== undefined) {
-      updateData.profileImage = user.profileImage
-    } else {
-      updateData.profileImage = null // Explicitly set to null if undefined
-    }
-
-    if (user.lastLogin !== undefined) {
-      updateData.lastLogin = user.lastLogin
-    }
-
-    if (user.deletedAt !== undefined) {
-      updateData.deletedAt = user.deletedAt
-    } else {
-      updateData.deletedAt = null
-    }
-
-    const record = await prisma.user.update({
-      where: { uuid: user.uuid },
-      data: updateData,
+async save(user: User): Promise<User> {
+  const record = await prisma.$transaction(async tx => {
+    // 1️⃣ Upsert user
+    const userRecord = await tx.user.upsert({
+      where: { uuid: user.id },
+      update: {
+        name: user.nameValue,
+        phone: user.phoneValue,
+        pinHash: user.pinHashValue,
+        status: user.statusValue,
+        role: user.roleValue,
+        ...(user.profileImageValue !== undefined && { profileImage: user.profileImageValue }),
+        ...(user.lastLoginValue !== undefined && { lastLogin: user.lastLoginValue }),
+        ...(user.deletedAtValue !== undefined && { deletedAt: user.deletedAtValue }),
+      },
+      create: {
+        uuid: user.id,
+        name: user.nameValue,
+        phone: user.phoneValue,
+        pinHash: user.pinHashValue,
+        status: user.statusValue,
+        role: user.roleValue,
+        profileImage: user.profileImageValue ?? null,
+        createdAt: user.createdAtValue,
+        lastLogin: user.lastLoginValue ?? null,
+        deletedAt: user.deletedAtValue ?? null,
+      },
     })
 
-    return this.toDomain(record)
-  }
+    // 2️⃣ Resolve internal numeric ID for devices
+    const userIdInt = userRecord.id
+
+    // 3️⃣ Upsert devices
+    for (const device of user.getDevices()) {
+      await tx.device.upsert({
+        where: { uuid: device.uuidValue },
+        update: {
+          ...(device.deviceNameValue !== undefined && { deviceName: device.deviceNameValue }),
+          ...(device.deviceTypeValue !== undefined && { deviceType: device.deviceTypeValue }),
+          ...(device.osValue !== undefined && { os: device.osValue }),
+          ...(device.browserValue !== undefined && { browser: device.browserValue }),
+          ...(device.ipAddressValue !== undefined && { ipAddress: device.ipAddressValue }),
+          ...(device.deviceTokenValue !== undefined && { deviceToken: device.deviceTokenValue }),
+          lastUsedAt: device.lastUsedAtValue,
+          ...(device.deletedAtValue !== undefined && { deletedAt: device.deletedAtValue ?? null }),
+          userId: userIdInt, // <-- map UUID to internal Int ID here
+        },
+        create: {
+          uuid: device.uuidValue,
+          userId: userIdInt, // <-- map UUID to internal Int ID here
+          ...(device.deviceNameValue !== undefined && { deviceName: device.deviceNameValue }),
+          ...(device.deviceTypeValue !== undefined && { deviceType: device.deviceTypeValue }),
+          ...(device.osValue !== undefined && { os: device.osValue }),
+          ...(device.browserValue !== undefined && { browser: device.browserValue }),
+          ...(device.ipAddressValue !== undefined && { ipAddress: device.ipAddressValue }),
+          ...(device.deviceTokenValue !== undefined && { deviceToken: device.deviceTokenValue }),
+          lastUsedAt: device.lastUsedAtValue,
+          createdAt: device.createdAtValue,
+          ...(device.deletedAtValue !== undefined && { deletedAt: device.deletedAtValue ?? null }),
+        },
+      })
+    }
+
+    return userRecord
+  })
+
+  return this.toDomain(record)
+}
 
   // Delete user (soft delete)
   async delete(uuid: string): Promise<void> {
@@ -170,102 +201,59 @@ export class PrismaUserRepository implements IUserRepository {
       where: { uuid },
       data: {
         deletedAt: new Date(),
-        status: this.toPrismaStatus(UserStatus.DELETED),
-      },
-    })
-  }
-
-  // Verify PIN (for non-deleted users)
-  async verifyPin(deviceId: string, pin: string): Promise<boolean> {
-    const record = await prisma.user.findFirst({
-      where: {
-        deviceId: { has: deviceId },
-        deletedAt: null,
-      },
-    })
-
-    if (!record) return false
-
-    return bcrypt.compare(pin, record.pinHash)
-  }
-
-  // Change PIN
-  async changePin(uuid: string, newPinHash: string): Promise<void> {
-    await prisma.user.update({
-      where: { uuid },
-      data: {
-        pinHash: newPinHash,
-      },
-    })
-  }
-
-  // Update device ID (for non-deleted users)
-  async updateDeviceId(uuid: string, deviceId: string): Promise<User> {
-    // Get current user
-    const record = await prisma.user.findFirst({
-      where: {
-        uuid,
-        deletedAt: null,
-      },
-    })
-
-    if (!record) {
-      throw new Error('User not found')
-    }
-
-    const deviceIds = record.deviceId || []
-    if (!deviceIds.includes(deviceId)) {
-      deviceIds.push(deviceId)
-    }
-
-    const updateData: Prisma.UserUpdateInput = {
-      deviceId: deviceIds,
-    }
-
-    const updated = await prisma.user.update({
-      where: { uuid },
-      data: updateData,
-    })
-
-    return this.toDomain(updated)
-  }
-
-  // Update last login
-  async updateLastLogin(uuid: string): Promise<void> {
-    await prisma.user.update({
-      where: { uuid },
-      data: {
-        lastLogin: new Date(),
       },
     })
   }
 
   // Find by phone or device ID (non-deleted only)
-  async findByPhoneOrDeviceId(deviceId: string, phone?: string): Promise<User> {
-    const orConditions: Prisma.UserWhereInput[] = []
-    if (phone) {
-      console.log('Searching for user with phone:', phone)
-      orConditions.push({ phone })
+  async findByPhoneOrDeviceId(deviceId?: string, phone?: string): Promise<User> {
+    if (!deviceId && !phone) {
+      throw new Error('Must provide phone or deviceId')
     }
 
-    if (deviceId) {
-      orConditions.push({ deviceId: { has: deviceId } })
+    const whereConditions: any = {
+      deletedAt: null,
+    }
+
+    if (phone && deviceId) {
+      whereConditions.OR = [
+        { phone },
+        {
+          devices: {
+            some: {
+              uuid: deviceId,
+              deletedAt: null,
+            },
+          },
+        },
+      ]
+    } else if (phone) {
+      whereConditions.phone = phone
+    } else if (deviceId) {
+      whereConditions.devices = {
+        some: {
+          uuid: deviceId,
+          deletedAt: null,
+        },
+      }
     }
 
     const record = await prisma.user.findFirst({
-      where: {
-        OR: orConditions,
-        deletedAt: null,
+      where: whereConditions,
+      include: {
+        devices: true,
       },
     })
 
-    if (!record)
-      throw new UserNotFound(`User not found with given phone:${phone} or device ID:${deviceId}`)
+    if (!record) {
+      throw new UserNotFound(
+        `User not found with phone: ${phone ?? 'N/A'} or deviceId: ${deviceId ?? 'N/A'}`
+      )
+    }
 
     return this.toDomain(record)
   }
 
-  // Get all users (optionally include deleted)
   async findAll(includeDeleted: boolean = false): Promise<User[]> {
     const where = includeDeleted ? {} : { deletedAt: null }
 
@@ -315,7 +303,7 @@ export class PrismaUserRepository implements IUserRepository {
 
   // Count users (optionally include deleted)
   async count(includeDeleted: boolean = false): Promise<number> {
-    const where: Prisma.UserWhereInput = includeDeleted ? {} : { deletedAt: null }
+    const where: Prisma.userWhereInput = includeDeleted ? {} : { deletedAt: null }
 
     return await prisma.user.count({ where })
   }
@@ -352,7 +340,7 @@ export class PrismaUserRepository implements IUserRepository {
     pin?: string,
     profileImage?: string
   ): Promise<User> {
-    const updateData: Prisma.UserUpdateInput = {}
+    const updateData: Prisma.userUpdateInput = {}
 
     if (name !== undefined) updateData.name = name
     if (phone !== undefined) updateData.phone = phone
@@ -377,28 +365,6 @@ export class PrismaUserRepository implements IUserRepository {
     await this.delete(uuid)
   }
 
-  // Helper method to find user by phone including deleted (for admin purposes)
-  async findByPhoneIncludingDeleted(phone: string): Promise<User | null> {
-    const record = await prisma.user.findUnique({
-      where: { phone },
-    })
-
-    if (!record) return null
-
-    return this.toDomain(record)
-  }
-
-  // Helper method to find user by UUID including deleted (for admin purposes)
-  async findByUUIDIncludingDeleted(uuid: string): Promise<User | null> {
-    const record = await prisma.user.findUnique({
-      where: { uuid },
-    })
-
-    if (!record) return null
-
-    return this.toDomain(record)
-  }
-
   // Restore soft-deleted user
   async restore(uuid: string): Promise<User> {
     const record = await prisma.user.update({
@@ -410,12 +376,5 @@ export class PrismaUserRepository implements IUserRepository {
     })
 
     return this.toDomain(record)
-  }
-
-  // Permanently delete user (hard delete)
-  async permanentDelete(uuid: string): Promise<void> {
-    await prisma.user.delete({
-      where: { uuid },
-    })
   }
 }

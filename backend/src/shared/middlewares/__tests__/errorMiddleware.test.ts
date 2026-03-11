@@ -1,5 +1,5 @@
-import { DatabaseError } from '@/shared/errors/DatabaseError'
-import { UserMappingError } from '@/shared/errors/UserMappingError'
+import { DatabaseError } from '@/shared/errors/repository/DatabaseError'
+import { UserMappingError } from '@/shared/errors/repository/UserMappingError'
 import { errorMiddleware } from '../error.middleware'
 
 describe('errorMiddleware', () => {
