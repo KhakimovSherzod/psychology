@@ -12,6 +12,7 @@
 
 <!-- ? 5 need to make functions for modifications of video through playlist i should transfer the code from video to playlist in order to make aggregated root -->
 
+<!-- ! need to update createPlaylist feature to create video -->
 
 <!-- ! 6 make logic for enrolment and update all functions, which requires validation that user enrolment  -->
 <!-- ! 7 need to focus on settings  -->

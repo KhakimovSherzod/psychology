@@ -11,16 +11,14 @@ export const createPlaylistSchema = z.object({
   ).min(1, 'Kamida bitta kategoriya tanlang'),
   description: z.string().trim().optional(),
   playlistThumbnailUrl: z.string().trim().optional(),
-  price: z.number().int().positive().nullable(),
+  price: z.number().int().positive(),
   visibility: z.enum(['PRIVATE', 'UNLISTED', 'PUBLIC']).default('PRIVATE'),
   status: z.enum(PlaylistStatus).default('DRAFT')
 })
-.transform((data) => {
-  // Remove undefined optional values
-  const cleaned: any = { ...data }
-  if (cleaned.description === undefined) delete cleaned.description
-  if (cleaned.playlistThumbnailUrl === undefined) delete cleaned.playlistThumbnailUrl
-  return cleaned
-})
+  .transform((obj) => {
+    return Object.fromEntries(
+      Object.entries(obj).filter(([_, v]) => v !== undefined)
+    );
+  });
 
 export type CreatePlaylistInput = z.infer<typeof createPlaylistSchema>

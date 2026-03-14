@@ -38,11 +38,11 @@ export class PrismaCategoryRepository implements ICategoryRepository {
     return categories.map(category => this.toDomain(category))
   }
 
-  async findByName(name: string): Promise<Category> {
+  async findByName(name: string): Promise<Category | null> {
     const category = await prisma.category.findUnique({
       where: { name },
     })
-
+    if(!category) return null
     return this.toDomain(category)
   }
 
