@@ -146,8 +146,8 @@ model playlist {
   id                   Int            @id @default(autoincrement())
   uuid                 String         @unique @default(uuid())
   title                String
-  description          String?
-  playlistThumbnailUrl String?
+  description          String
+  playlistThumbnailUrl String
   price                Int
   visibility           Visibility     @default(PRIVATE)
   status               PlaylistStatus @default(DRAFT)

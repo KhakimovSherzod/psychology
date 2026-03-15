@@ -37,7 +37,7 @@ interface Course {
 }
 
 interface Playlist {
-  uuid: string
+  id: string
   title: string
   description?: string
   playlistThumbnailUrl: string
@@ -119,7 +119,7 @@ export default function CoursesManagement({
 
   useEffect(() => {
     if (selectedPlaylist) {
-      fetchVideos(selectedPlaylist.uuid)
+      fetchVideos(selectedPlaylist.id)
     }
   }, [selectedPlaylist, fetchVideos])
 
@@ -410,7 +410,7 @@ export default function CoursesManagement({
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {filteredPlaylists.map((playlist) => (
                     <div
-                      key={playlist.uuid}
+                      key={playlist.id}
                       onClick={() => handlePlaylistSelect(playlist)}
                       className="group cursor-pointer border border-gray-200 rounded-xl overflow-hidden hover:border-blue-500 hover:shadow-lg transition-all duration-300 bg-white"
                     >
@@ -443,7 +443,7 @@ export default function CoursesManagement({
                         )}
                         <div className="mt-4 flex items-center justify-between">
                           <span className="text-xs text-gray-500">
-                            ID: {playlist.uuid.substring(0, 8)}...
+                            ID: {playlist.id.substring(0, 8)}...
                           </span>
                           <button className="text-blue-600 text-sm font-medium hover:text-blue-700">
                             Ko'rish →
@@ -458,7 +458,7 @@ export default function CoursesManagement({
                 <div className="space-y-3">
                   {filteredPlaylists.map((playlist) => (
                     <div
-                      key={playlist.uuid}
+                      key={playlist.id}
                       onClick={() => handlePlaylistSelect(playlist)}
                       className="flex items-center gap-4 p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-all duration-200 group"
                     >
@@ -489,7 +489,7 @@ export default function CoursesManagement({
                           {playlist.videoCount || 0} video
                         </span>
                         <span className="text-xs text-gray-400">
-                          ID: {playlist.uuid.substring(0, 6)}...
+                          ID: {playlist.id.substring(0, 6)}...
                         </span>
                         <button className="text-blue-600 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
                           O'tish →
@@ -533,7 +533,7 @@ export default function CoursesManagement({
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-500">Playlist ID:</span>
                     <code className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-sm">
-                      {selectedPlaylist.uuid}
+                      {selectedPlaylist.id}
                     </code>
                   </div>
                 </div>

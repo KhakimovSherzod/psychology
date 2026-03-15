@@ -88,7 +88,7 @@ async function getCoursesData() {
 }
 async function getplaylists() {
   const cookies = (await headers()).get('cookie') || ''
-  const playlists = await axios.get(`${backendUrl}/api/playlist/`, {
+  const playlists = await axios.get(`${backendUrl}/api/playlist/user`, {
     headers: {
       Cookie: cookies,
     },

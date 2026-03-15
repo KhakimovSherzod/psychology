@@ -1,19 +1,19 @@
 import { z } from 'zod'
-import { PlaylistStatus } from '@prisma/client'
+import { PlaylistStatus, Visibility } from '@prisma/client'
 
 export const createPlaylistSchema = z.object({
   title: z.string().trim().min(1, 'Sarlavha kerak'),
+  description: z.string().trim(),
+  playlistThumbnailUrl: z.string().trim(),
+  price: z.number().int().positive(),
   categories: z.array(
     z.object({
-      uuid: z.string().uuid(),
+      uuid: z.uuid(),
       name: z.string().trim().min(1),
     })
   ).min(1, 'Kamida bitta kategoriya tanlang'),
-  description: z.string().trim().optional(),
-  playlistThumbnailUrl: z.string().trim().optional(),
-  price: z.number().int().positive(),
-  visibility: z.enum(['PRIVATE', 'UNLISTED', 'PUBLIC']).default('PRIVATE'),
-  status: z.enum(PlaylistStatus).default('DRAFT')
+  visibility: z.enum(Visibility),
+  status: z.enum(PlaylistStatus)
 })
   .transform((obj) => {
     return Object.fromEntries(

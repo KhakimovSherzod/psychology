@@ -27,14 +27,15 @@ export default function Page() {
 
     try {
       // 1️⃣ Fetch TUS upload data from backend
-      const res = await fetch('http://localhost:3001/api/videos/upload-url', {
+      const res = await fetch('http://localhost:3001/api/videos/admin/upload-url', {
         method: 'GET', // HTTP method
         credentials: 'include', // send cookies (if needed)
       })
 
       if (!res.ok) throw new Error('Failed to get TUS data from backend')
+ 
       const data = await res.json()
-
+       console.log(data)
       const tusData = data.tusUpload
 
       // 2️⃣ Initialize TUS upload
@@ -94,7 +95,7 @@ export default function Page() {
       )}
 
       {message && <p style={{ marginTop: '1rem' }}>{message}</p>}
-      <iframe src='https://player.mediadelivery.net/embed/578640/a3e2027e-f865-4ba3-b41a-2365233170bc'></iframe>
+      <div ><iframe src="https://player.mediadelivery.net/embed/617185/95c08977-186c-4cc3-9518-cc21e8620375?token=57ce18370cd2224d54dc993962f1fa43fca17724b5a2acb090401056f939c8d4&expires=1773571333&autoplay=true&loop=false&muted=false&preload=true&responsive=true" loading="lazy"  allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;"></iframe></div>
     </div>
   )
 }

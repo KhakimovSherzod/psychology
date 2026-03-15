@@ -213,7 +213,7 @@ async getVideosByPlaylistUuidForUser(userUUID: string, playlistUUID: string): Pr
   // -------------------- CREATE --------------------
  async createPlaylist(data: CreatePlaylistInput): Promise<PlaylistAdminDTO> {
   const newUuid = uuidv4()
-  const defaultPrice = new PriceVO(data.price)
+
 
   // Reconstruct the Playlist entity
   const playlist = Playlist.reconstruct({
@@ -222,11 +222,11 @@ async getVideosByPlaylistUuidForUser(userUUID: string, playlistUUID: string): Pr
     visibility: data.visibility,
     status: data.status,
     categories: data.categories,
-    price: defaultPrice,
-    description: data.description,             // optional
+    price: data.price,
     playlistThumbnailUrl: data.playlistThumbnailUrl, // optional
     createdAt: new Date(),
     updatedAt: new Date()
+    description: data.description,             // optional
   })
 
   const savedPlaylist = await this.playlistRepository.createPlaylist(playlist)
