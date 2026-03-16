@@ -180,7 +180,7 @@ model video {
   provider          VideoProvider
   externalVideoId   String
   title             String
-  description       String?
+  description       String
   videoThumbnailUrl String
   order             Int
   isFree            Boolean     @default(false)

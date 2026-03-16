@@ -17,9 +17,9 @@ export class Video {
     private categories: CategorySchema[],
     private order: number,
     private isFree: boolean,
-    private createdAt?: Date,
-    private description?: string,
-    private updatedAt?: Date,
+    private createdAt: Date,
+    private description: string,
+    private updatedAt: Date,
     private deletedAt?: Date,
     private publishedAt?: Date,
     private archivedAt?: Date,
@@ -37,9 +37,9 @@ export class Video {
     order: number
     isFree: boolean
     internalId?: number
-    createdAt?: Date
-    description?: string
-    updatedAt?: Date
+    createdAt: Date
+    description: string
+    updatedAt: Date
     deletedAt?: Date
     publishedAt?: Date
     archivedAt?: Date
@@ -72,8 +72,8 @@ export class Video {
     status: VideoStatus
     categories: string[]
     isFree: boolean
+    description: string
     order?: number
-    description?: string
   }): Video {
     return new Video(
       props.uuid,
@@ -133,7 +133,7 @@ export class Video {
   }
 
 
-  get descriptionValue(): string | undefined {
+  get descriptionValue(): string {
     return this.description
   }
 
@@ -181,7 +181,7 @@ export class Video {
     this.touchUpdatedAt()
   }
 
-  set descriptionValue(newDescription: string | undefined) {
+  set descriptionValue(newDescription: string) {
     if (this.deletedAt) {
       throw new CannotModifyDeletedVideoError(this.uuid)
     }

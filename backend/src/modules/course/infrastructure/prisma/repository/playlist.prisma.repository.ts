@@ -1,7 +1,7 @@
 import { Playlist } from '@/modules/course/domain/entities/playlist.entity'
 import { Video } from '@/modules/course/domain/entities/video.entity'
 import type { IPlaylistRespository } from '@/modules/course/domain/repository/playlist.repository'
-import { PriceVO } from '@/modules/course/domain/vo/price.vo'
+
 import { prisma } from '@/shared/client'
 import { PlaylistNotFound } from '@/shared/errors/repository/PlaylistNotFound'
 import { PlaylistStatus, Prisma, Visibility } from '@prisma/client'
@@ -13,9 +13,6 @@ interface UpdatePlaylistDto {
 }
 
 export class PlaylistPrismaRepository implements IPlaylistRespository {
-  save(playlist: Playlist): Promise<void> {
-    throw new Error('Method not implemented.')
-  }
   // -------------------- READ --------------------
 
   async getCoursePlaylists(options?: {
@@ -73,6 +70,7 @@ export class PlaylistPrismaRepository implements IPlaylistRespository {
         archivedAt: true,
       },
     })
+    console.log('prisma playlist', playlists)
 
 return playlists.map(p =>
   Playlist.reconstruct({
@@ -81,11 +79,11 @@ return playlists.map(p =>
     visibility: p.visibility,
     status: p.status,
     categories: p.categories,
-    price: p.price ? PriceVO.fromNumber(p.price) : new PriceVO(null),
-    ...(p.description != null && { description: p.description }),
-    ...(p.playlistThumbnailUrl != null && { playlistThumbnailUrl: p.playlistThumbnailUrl }),
-    ...(p.createdAt != null && { createdAt: p.createdAt }),
-    ...(p.updatedAt != null && { updatedAt: p.updatedAt }),
+    price: p.price,
+    description: p.description,
+    playlistThumbnailUrl: p.playlistThumbnailUrl,
+    createdAt: p.createdAt ,
+    updatedAt: p.updatedAt,
     ...(p.deletedAt != null && { deletedAt: p.deletedAt }),
     ...(p.publishedAt != null && { publishedAt: p.publishedAt }),
     ...(p.archivedAt != null && { archivedAt: p.archivedAt }),
@@ -141,7 +139,7 @@ return playlists.map(p =>
       },
     })
 
-    if (!playlist) throw new PlaylistNotFound('Pleylist topilmadi', uuid)
+    if (!playlist) throw new PlaylistNotFound(uuid)
 
     return playlist.videos.map(v =>
       Video.reconstruct({
@@ -155,8 +153,8 @@ return playlists.map(p =>
         categories: v.categories,
         isFree: v.isFree,
         createdAt: v.createdAt,
-        ...(v.description != null && { description: v.description }),
-        ...(v.updatedAt != null && { updatedAt: v.updatedAt }),
+        description: v.description ,
+        updatedAt: v.updatedAt,
         ...(v.deletedAt != null && { deletedAt: v.deletedAt }),
         ...(v.publishedAt != null && { publishedAt: v.publishedAt }),
         ...(v.archivedAt != null && { archivedAt: v.archivedAt }),
@@ -193,20 +191,27 @@ async findByUUID(uuid: string): Promise<Playlist> {
   });
 
   if (!playlist) {
-    throw new PlaylistNotFound('Playlist not found', uuid);
+    throw new PlaylistNotFound(uuid);
   }
 
-  const price = new PriceVO(playlist.price ?? null);
+
   const categories = playlist.categories.map(c => ({ uuid: c.uuid, name: c.name }));
 
-  return Playlist.reconstruct({
-    uuid: playlist.uuid,
-    title: playlist.title,
-    visibility: playlist.visibility,
-    status: playlist.status,
-    categories,
-    price,
-    videos: playlist.videos.map(v => Video.reconstruct({
+return Playlist.reconstruct({
+  uuid: playlist.uuid,
+  title: playlist.title,
+  visibility: playlist.visibility,
+  status: playlist.status,
+  categories,
+  price: playlist.price,
+  playlistThumbnailUrl: playlist.playlistThumbnailUrl,
+  createdAt: playlist.createdAt,
+  updatedAt: playlist.updatedAt,
+  description: playlist.description,
+  internalId: playlist.id,
+
+  videos: playlist.videos.map(v =>
+    Video.reconstruct({
       uuid: v.uuid,
       provider: v.provider,
       externalVideoId: v.externalVideoId,
@@ -217,21 +222,19 @@ async findByUUID(uuid: string): Promise<Playlist> {
       categories: v.categories,
       isFree: v.isFree,
       createdAt: v.createdAt,
-      ...(v.description != null && { description: v.description }),
-      ...(v.updatedAt != null && { updatedAt: v.updatedAt }),
-      ...(v.deletedAt != null && { deletedAt: v.deletedAt }),
-      ...(v.publishedAt != null && { publishedAt: v.publishedAt }),
-      ...(v.archivedAt != null && { archivedAt: v.archivedAt }),
-    })),
-    ...(playlist.description != null && { description: playlist.description }),
-    ...(playlist.playlistThumbnailUrl != null && { playlistThumbnailUrl: playlist.playlistThumbnailUrl }),
-    ...(playlist.createdAt != null && { createdAt: playlist.createdAt }),
-    ...(playlist.updatedAt != null && { updatedAt: playlist.updatedAt }),
-    ...(playlist.deletedAt != null && { deletedAt: playlist.deletedAt }),
-    ...(playlist.publishedAt != null && { publishedAt: playlist.publishedAt }),
-    ...(playlist.archivedAt != null && { archivedAt: playlist.archivedAt }),
-    internalId: playlist.id
-  });
+
+description: v.description ,
+ updatedAt: v.updatedAt ,
+      ...(v.deletedAt && { deletedAt: v.deletedAt }),
+      ...(v.publishedAt && { publishedAt: v.publishedAt }),
+      ...(v.archivedAt && { archivedAt: v.archivedAt }),
+    })
+  ),
+
+  ...(playlist.deletedAt && { deletedAt: playlist.deletedAt }),
+  ...(playlist.publishedAt && { publishedAt: playlist.publishedAt }),
+  ...(playlist.archivedAt && { archivedAt: playlist.archivedAt }),
+})
 }
 
 
@@ -249,8 +252,12 @@ async createPlaylist(playlist: Playlist): Promise<Playlist> {
       price: playlist.priceValue.amount,
       createdAt: playlist.createdAtValue ?? now,
       updatedAt: playlist.updatedAtValue ?? now,
-      ...(playlist.descriptionValue !== undefined && { description: playlist.descriptionValue }),
-      ...(playlist.playlistThumbnailUrlValue !== undefined && { playlistThumbnailUrl: playlist.playlistThumbnailUrlValue }),
+      description: playlist.descriptionValue ,
+      playlistThumbnailUrl: playlist.playlistThumbnailUrlValue,
+      categories: {
+      connect: playlist.categoriesValue.map(c => ({ uuid: c.uuid })),
+
+    },
     },
     select: {
       id: true,
@@ -275,23 +282,24 @@ async createPlaylist(playlist: Playlist): Promise<Playlist> {
     },
   });
 
-  return Playlist.reconstruct({
-    uuid: saved.uuid,
-    title: saved.title,
-    visibility: saved.visibility,
-    status: saved.status,
-    categories: saved.categories.map(c => ({ uuid: c.uuid, name: c.name })),
-    price: saved.price ? PriceVO.fromNumber(saved.price) : new PriceVO(null),
-    videos: [], // no videos yet
-    ...(saved.description != null && { description: saved.description }),
-    ...(saved.playlistThumbnailUrl != null && { playlistThumbnailUrl: saved.playlistThumbnailUrl }),
-    ...(saved.createdAt != null && { createdAt: saved.createdAt }),
-    ...(saved.updatedAt != null && { updatedAt: saved.updatedAt }),
-    ...(saved.deletedAt != null && { deletedAt: saved.deletedAt }),
-    ...(saved.publishedAt != null && { publishedAt: saved.publishedAt }),
-    ...(saved.archivedAt != null && { archivedAt: saved.archivedAt }),
-    internalId: saved.id,
-  });
+    return Playlist.reconstruct({
+      uuid: saved.uuid,
+      title: saved.title,
+      visibility: saved.visibility,
+      status: saved.status,
+      categories: saved.categories.map(c => ({ uuid: c.uuid, name: c.name })),
+      price: saved.price,
+      playlistThumbnailUrl: saved.playlistThumbnailUrl,
+      createdAt: saved.createdAt,
+      updatedAt: saved.updatedAt,
+      description: saved.description,
+      videos: [], // no videos yet
+      internalId: saved.id,
+
+      ...(saved.deletedAt && { deletedAt: saved.deletedAt }),
+      ...(saved.publishedAt && { publishedAt: saved.publishedAt }),
+      ...(saved.archivedAt && { archivedAt: saved.archivedAt }),
+    });
 }
 
   // -------------------- UPDATE --------------------
@@ -300,15 +308,27 @@ async createPlaylist(playlist: Playlist): Promise<Playlist> {
     try {
       const updated = await prisma.playlist.update({
         where: { uuid },
+        include:{categories:true},
         data
       })
 
-      return new Playlist(
-        updated.uuid,
-        updated.title,
-        updated.description ?? undefined,
-        updated.playlistThumbnailUrl ?? undefined
-      )
+          return Playlist.reconstruct({
+          uuid: updated.uuid,
+          title: updated.title,
+          visibility: updated.visibility,
+          status: updated.status,
+          categories: updated.categories,
+          price: updated.price,
+          playlistThumbnailUrl: updated.playlistThumbnailUrl,
+          createdAt: updated.createdAt,
+          updatedAt: updated.updatedAt,
+          description: updated.description,
+          ...(updated.deletedAt && { deletedAt: updated.deletedAt }),
+          ...(updated.publishedAt && { publishedAt: updated.publishedAt }),
+          ...(updated.archivedAt && { archivedAt: updated.archivedAt }),
+          videos: [],
+          internalId: updated.id
+        })
     } catch (err: any) {
       if (err.code === 'P2025') return null
       throw err
@@ -338,7 +358,7 @@ async savePlaylistVideos(playlist: Playlist): Promise<void> {
     where: { uuid: playlist.id },
     select: { id: true },
   });
-  if (!dbPlaylist) throw new PlaylistNotFound('Playlist not found in DB', playlist.id);
+  if (!dbPlaylist) throw new PlaylistNotFound(playlist.id);
   const playlistDbId = dbPlaylist.id;
 
   // 2️⃣ Fetch all existing videos in the playlist, including deleted
@@ -377,7 +397,7 @@ async savePlaylistVideos(playlist: Playlist): Promise<void> {
           status: video.statusValue,
           order: video.orderValue,
           isFree: video.isFreeValue,
-          ...(video.descriptionValue ? { description: video.descriptionValue } : {}),
+          description: video.descriptionValue,
           updatedAt: video.updatedAtValue ?? new Date(),
           ...(video.categoriesValue.length
             ? { categories: { set: video.categoriesValue.map(c => ({ uuid: c.uuid })) } }
@@ -394,7 +414,7 @@ async savePlaylistVideos(playlist: Playlist): Promise<void> {
           order: video.orderValue,
           isFree: video.isFreeValue,
           playlistId: playlistDbId,
-          ...(video.descriptionValue ? { description: video.descriptionValue } : {}),
+         description: video.descriptionValue,
           createdAt: video.createdAtValue ?? new Date(),
           updatedAt: video.updatedAtValue ?? new Date(),
           ...(video.categoriesValue.length

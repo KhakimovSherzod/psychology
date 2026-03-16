@@ -9,13 +9,13 @@ export type PlaylistAdminDTO = {
 
   price: number | null
 
-  description?: string
-  playlistThumbnailUrl?: string
+  description: string
+  playlistThumbnailUrl: string
 
   categories: CategorySchema[]
 
-  createdAt?: Date
-  updatedAt?: Date
+  createdAt: Date
+  updatedAt: Date
   publishedAt?: Date
   archivedAt?: Date
 }
@@ -24,11 +24,11 @@ export type PlaylistUserDTO = {
   title: string;
   price: number | null;
 
-  playlistThumbnailUrl?: string;
+  playlistThumbnailUrl: string;
   categories: CategorySchema[];
 
   // optional but safe
-  description?: string;
+  description: string;
 
   // new field to indicate if the user has access
   hasAccess: boolean;

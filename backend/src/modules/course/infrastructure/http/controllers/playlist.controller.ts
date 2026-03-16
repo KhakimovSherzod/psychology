@@ -158,7 +158,7 @@ export class PlaylistController {
 
   async createVideo(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const playlistUUID = uuidParamSchema.parse(req.params.uuid)
+      const playlistUUID = uuidParamSchema.parse(req.params.playlistUUID)
       const dto = createVideoSchema.parse(req.body)
       // ------------------- Call Service -------------------
       await this.playlistService.createVideo(playlistUUID, dto)

@@ -5,16 +5,12 @@ export const createVideoSchema = z.object({
   provider: z.enum(VideoProvider),
   externalVideoId: z
     .string()
-    .min(1) 
-    .transform(str => str.trim()),
+    .min(1).trim(),
   title: z
     .string()
-    .min(1)
-    .transform(str => str.trim()),
+    .min(1).trim(),
   description: z
-    .string()
-    .optional()
-    .transform(desc => desc?.trim()),
+    .string().trim(),
   videoThumbnailUrl: z.url(),
   status: z.enum(VideoStatus).default(VideoStatus.DRAFT),
   order: z.number().int().optional(),

@@ -7,7 +7,7 @@ import type { PlaylistStatus, Visibility } from '@prisma/client'
 import { v4 as uuidv4 } from 'uuid'
 import { Video } from '../../domain/entities/video.entity'
 import type { IPlaylistRespository } from '../../domain/repository/playlist.repository'
-import { PriceVO } from '../../domain/vo/price.vo'
+
 import type { CreateVideoDto } from '../../infrastructure/validator/create.video.validator'
 import type { CreatePlaylistInput } from '../../infrastructure/validator/createPlaylistSchema'
 import type { PlaylistAdminDTO, PlaylistUserDTO } from '../DTO/playlist.response.dto'
@@ -38,7 +38,7 @@ async getAllPlaylists(userUUID: string): Promise<PlaylistUserDTO[]> {
       price: playlist.priceValue.amount,
       categories: playlist.categoriesValue,
       hasAccess,
-      ...(playlist.descriptionValue && { description: playlist.descriptionValue }),
+       description: playlist.descriptionValue,
     } as PlaylistUserDTO;
   });
 }
@@ -89,19 +89,11 @@ async getVideosByPlaylistUuidForUser(userUUID: string, playlistUUID: string): Pr
         status: playlist.statusValue,
         price: playlist.priceValue.amount,
         categories: playlist.categoriesValue,
-
-        ...(playlist.descriptionValue !== undefined && {
           description: playlist.descriptionValue,
-        }),
-        ...(playlist.playlistThumbnailUrlValue !== undefined && {
           playlistThumbnailUrl: playlist.playlistThumbnailUrlValue,
-        }),
-        ...(playlist.createdAtValue !== undefined && {
           createdAt: playlist.createdAtValue,
-        }),
-        ...(playlist.updatedAtValue !== undefined && {
           updatedAt: playlist.updatedAtValue,
-        }),
+
         ...(playlist.publishedAtValue !== undefined && {
           publishedAt: playlist.publishedAtValue,
         }),
@@ -162,12 +154,12 @@ async getVideosByPlaylistUuidForUser(userUUID: string, playlistUUID: string): Pr
       hasAccess:true,
 
       categories: playlist.categoriesValue,
-      ...(playlist.descriptionValue !== undefined && {
+
         description: playlist.descriptionValue,
-      }),
-      ...(playlist.playlistThumbnailUrlValue !== undefined && {
+      
+
         playlistThumbnailUrl: playlist.playlistThumbnailUrlValue,
-      }),
+      
     }
   }
 
@@ -184,21 +176,21 @@ async getVideosByPlaylistUuidForUser(userUUID: string, playlistUUID: string): Pr
 
       categories: playlist.categoriesValue,
 
-      ...(playlist.descriptionValue !== undefined && {
+
         description: playlist.descriptionValue,
-      }),
+  
 
-      ...(playlist.playlistThumbnailUrlValue !== undefined && {
+ 
         playlistThumbnailUrl: playlist.playlistThumbnailUrlValue,
-      }),
 
-      ...(playlist.createdAtValue && {
+
+
         createdAt: playlist.createdAtValue,
-      }),
+   
 
-      ...(playlist.updatedAtValue && {
+  
         updatedAt: playlist.updatedAtValue,
-      }),
+     
 
       ...(playlist.publishedAtValue && {
         publishedAt: playlist.publishedAtValue,
@@ -225,7 +217,7 @@ async getVideosByPlaylistUuidForUser(userUUID: string, playlistUUID: string): Pr
     price: data.price,
     playlistThumbnailUrl: data.playlistThumbnailUrl, // optional
     createdAt: new Date(),
-    updatedAt: new Date()
+    updatedAt: new Date(),
     description: data.description,             // optional
   })
 
@@ -239,10 +231,10 @@ async getVideosByPlaylistUuidForUser(userUUID: string, playlistUUID: string): Pr
     status: savedPlaylist.statusValue,
     price: savedPlaylist.priceValue.amount,
     categories: savedPlaylist.categoriesValue,
-    ...(savedPlaylist.descriptionValue && { description: savedPlaylist.descriptionValue }),
-    ...(savedPlaylist.playlistThumbnailUrlValue && {
+    description: savedPlaylist.descriptionValue,
+
       playlistThumbnailUrl: savedPlaylist.playlistThumbnailUrlValue,
-    }),
+
     ...(savedPlaylist.createdAtValue && { createdAt: savedPlaylist.createdAtValue }),
     ...(savedPlaylist.updatedAtValue && { updatedAt: savedPlaylist.updatedAtValue }),
     ...(savedPlaylist.publishedAtValue && { publishedAt: savedPlaylist.publishedAtValue }),
@@ -275,7 +267,7 @@ async getVideosByPlaylistUuidForUser(userUUID: string, playlistUUID: string): Pr
       videoThumbnailUrl: dto.videoThumbnailUrl,
       status: dto.status,
       categories: dto.categories,
-      ...(dto.description !== undefined && { description: dto.description }),
+       description: dto.description,
       ...(dto.order !== undefined ? { order: dto.order } : { order: 0 }),
       isFree: dto.isFree,
     })

@@ -26,7 +26,7 @@ router.get('/:uuid/videos', requirePermission(Permission.READ), (req, res, next)
 )
 
 //post data to db
-router.post('/:uuid/video', requirePermission(Permission.CREATE), (req, res, next) =>
+router.post('/:playlistUUID/video', requirePermission(Permission.CREATE), (req, res, next) =>
   playlistController.createVideo(req, res, next)
 )
 

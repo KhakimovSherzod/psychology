@@ -12,13 +12,9 @@ export const createPlaylistSchema = z.object({
       name: z.string().trim().min(1),
     })
   ).min(1, 'Kamida bitta kategoriya tanlang'),
-  visibility: z.enum(Visibility),
-  status: z.enum(PlaylistStatus)
+  visibility: z.nativeEnum(Visibility),
+  status: z.nativeEnum(PlaylistStatus)
 })
-  .transform((obj) => {
-    return Object.fromEntries(
-      Object.entries(obj).filter(([_, v]) => v !== undefined)
-    );
-  });
+
 
 export type CreatePlaylistInput = z.infer<typeof createPlaylistSchema>
