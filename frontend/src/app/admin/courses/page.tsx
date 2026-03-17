@@ -1,7 +1,8 @@
 // app/admin/courses/page.tsx (Server Component)
-import CoursesManagement from './CoursesManagement'
+
 import { cookies } from 'next/headers'
 import { getCurrentUser } from '@/lib/auth'
+import { CoursesManagement } from './CoursesManagement'
 
 const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL
 
