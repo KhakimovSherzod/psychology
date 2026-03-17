@@ -79,8 +79,7 @@ export class AuthController {
         ipAddress,
         deviceToken,
       }
-      console.log('Parsed deviceInfo:', deviceInfo)
-      console.log('deviceId:%s, pin:%s, phone:%s', deviceId, pin, phone)
+
       // Ensure that deviceInfo is passed as an object
       const result = await this.loginService.login(deviceId, pin, phone, deviceInfo)
 

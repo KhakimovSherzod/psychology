@@ -36,7 +36,7 @@ export class AuthMiddleware {
     if (!refreshToken) {
       return res.status(401).json({ message: 'Autentifikatsiya talab qilinadi' })
     }
-
+    console.log('Refresh token:', refreshToken) // Debugging log
     const decodedRefresh = this.tokenService.verifyRefreshToken(refreshToken)
     if (!decodedRefresh) {
       return res.status(401).json({ message: 'Yangilash belgisi yaroqsiz' })
@@ -54,10 +54,11 @@ export class AuthMiddleware {
     // ------------------------------------------------
     // 4. ROTATE ACCESS TOKEN
     // ------------------------------------------------
-    const newAccessToken = this.tokenService.generateAccessToken({
+    const newAccessToken = await this.tokenService.generateAccessToken({
       userId: user.id,
       role: user.role,
     })
+    console.log('Yangi access token:', newAccessToken) // Debugging log
 
     res.cookie('accessToken', newAccessToken, {
       httpOnly: true,

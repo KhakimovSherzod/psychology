@@ -13,15 +13,15 @@ export default async function AdminCoursesPage() {
   const refreshToken = cookieStore.get('refreshToken')?.value
 
   if (!accessToken || !refreshToken) {
-    return <div>Unauthorized</div>
+    return <div>Ruxsat yo&apos;q</div>
   }
   const currentUser = await getCurrentUser()
     if (currentUser?.role !== 'ADMIN') {
     return (
       <div className='p-6'>
         <div className='bg-red-50 border border-red-200 rounded-lg p-6 text-center'>
-          <h2 className='text-xl font-bold text-red-800 mb-2'>Ruxsat Yo'q</h2>
-          <p className='text-red-600'>Sizda admin paneliga kirish uchun ruxsat yo'q.</p>
+          <h2 className='text-xl font-bold text-red-800 mb-2'>Ruxsat Yo&apos;q</h2>
+          <p className='text-red-600'>Sizda admin paneliga kirish uchun ruxsat yo&apos;q.</p>
         </div>
       </div>
     )
@@ -41,9 +41,9 @@ export default async function AdminCoursesPage() {
     console.error(err)
     return []
   })
-  console.log(playlists)
-  // Render client component with SSR data
-  // return (
-  //   <CoursesManagement playlists={playlists} />
-  // )
+
+
+  return (
+    <CoursesManagement playlists={playlists} />
+  )
 }
