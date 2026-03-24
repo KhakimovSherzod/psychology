@@ -111,13 +111,41 @@ export class AuthController {
           maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
           domain: process.env.NODE_ENV === 'production' ? 'yourdomain.com' : 'localhost',
           path: '/',
-        });
+        })
       }
 
       // Respond with a 201 status code to indicate successful login
       res.status(201).end()
     } catch (err) {
       // Pass errors to the next middleware (error handler)
+      next(err)
+    }
+  }
+
+  async refreshToken(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const refreshToken = req.cookies.refreshToken
+
+      if (!refreshToken) {
+        res.status(401).json({ message: 'Refresh token is missing' })
+        return
+      }
+
+      const result = await this.loginService.refreshToken(refreshToken)
+
+      // Set the new access token in cookies
+      res.cookie('accessToken', result.accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        maxAge: 15 * 60 * 1000, // 15 minutes
+        domain: process.env.NODE_ENV === 'production' ? 'yourdomain.com' : 'localhost',
+      })
+
+      console.log('New access token generated:', result.accessToken) // Debugging log
+
+      res.status(200).json(result)
+    } catch (err) {
       next(err)
     }
   }

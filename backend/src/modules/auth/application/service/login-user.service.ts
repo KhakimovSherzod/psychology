@@ -1,9 +1,9 @@
-import { Device } from "@/modules/user/domain/entities/device.entity"
-import { InvalidPinVerification } from "@/shared/errors/application/InvalidPinVerification"
+import { Device } from '@/modules/user/domain/entities/device.entity'
+import { InvalidPinVerification } from '@/shared/errors/application/InvalidPinVerification'
 
-import type { ITokenService } from "../ports/token.service"
-import type { PinHasher } from "../ports/pinHasher"
-import type { IUserRepository } from "@/modules/user/application/repositories/user.repository"
+import type { IUserRepository } from '@/modules/user/application/repositories/user.repository'
+import type { PinHasher } from '../ports/pinHasher'
+import type { ITokenService } from '../ports/token.service'
 
 export class LoginUserService {
   constructor(
@@ -28,19 +28,19 @@ export class LoginUserService {
     // 1️⃣ Try to find the user by phone or device UUID
     const user = await this.userRepository.findByPhoneOrDeviceId(deviceId, phone)
 
-    let deviceToken = null;
-    
+    let deviceToken = null
+
     if (!user) {
       // 2️⃣ If the user doesn't exist, create a deviceToken
       deviceToken = await this.tokenService.generateDeviceToken({
         deviceId: deviceId,
-        userId: deviceId // Use the deviceUuid as a pseudo user ID
-      });
+        userId: deviceId, // Use the deviceUuid as a pseudo user ID
+      })
       return {
         accessToken: null, // No access token without a user
         refreshToken: null, // No refresh token without a user
-        deviceToken // Return the device token for the new device
-      };
+        deviceToken, // Return the device token for the new device
+      }
     }
 
     // 3️⃣ Verify PIN if the user exists
@@ -55,10 +55,10 @@ export class LoginUserService {
 
     if (existingDevice) {
       // Mark the device as used if it already exists
-      existingDevice.markUsed();
+      existingDevice.markUsed()
     } else {
       // If it's a new device, create and add the device
-      const newDevice =  Device.create(
+      const newDevice = Device.create(
         deviceId,
         String(user.id), // ensure user id is a string
         deviceInfo?.deviceName,
@@ -67,15 +67,15 @@ export class LoginUserService {
         deviceInfo?.browser,
         deviceInfo?.ipAddress,
         deviceInfo?.deviceToken
-      );
-      user.addDevice(newDevice);
+      )
+      user.addDevice(newDevice)
 
       // If it's a new device, generate the deviceToken
       if (deviceInfo?.deviceToken) {
         deviceToken = await this.tokenService.generateDeviceToken({
           deviceId: deviceId,
-          userId: user.id
-        });
+          userId: user.id,
+        })
       }
     }
 
@@ -86,13 +86,34 @@ export class LoginUserService {
     const tokens = await this.tokenService.generateTokens({
       userId: user.id,
       role: user.roleValue,
-      deviceId: deviceId
+      deviceId: deviceId,
     })
 
     // 8️⃣ Return access token, refresh token, and device token (if it was generated)
     return {
       ...tokens,
-      deviceToken
+      deviceToken,
     }
+  }
+  async refreshToken(refreshToken: string) {
+    // 1️⃣ Verify the refresh token
+    const decoded = this.tokenService.verifyRefreshToken(refreshToken)
+    if (!decoded) {
+      throw new Error('Invalid refresh token')
+    }
+
+    // 2️⃣ Load the user by ID from the decoded token
+    const user = await this.userRepository.findByUUID(decoded.userId)
+    if (!user) {
+      throw new Error('User not found')
+    }
+    console.log('User found for refresh token:', user) // Debugging log
+
+    // 3️⃣ Generate a new access token (and optionally a new refresh token)
+    const accessToken = await this.tokenService.generateAccessToken({
+      userId: user.id,
+      role: user.roleValue,
+    })
+    return { accessToken }
   }
 }

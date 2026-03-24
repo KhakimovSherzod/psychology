@@ -7,6 +7,18 @@ export const getCurrentUser = cache(async () => {
     const cookieStore = await cookies()
 
     const accessToken = cookieStore.get('accessToken')?.value
+
+    if (!accessToken) {
+      const res = await fetch('http://localhost:3000/api/refreshToken', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: `refreshToken=${cookieStore.get('refreshToken')?.value || ''}`,
+        },
+        cache: 'no-store',
+      })
+      console.log('Refresh token response:', res) // Debugging log
+    }
     const refreshToken = cookieStore.get('refreshToken')?.value
 
     const cookieHeader = [
@@ -15,6 +27,7 @@ export const getCurrentUser = cache(async () => {
     ]
       .filter(Boolean)
       .join('; ')
+
 
     const res = await fetch('http://localhost:3001/api/users/me', {
       method: 'GET',
